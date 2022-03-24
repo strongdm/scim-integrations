@@ -1,0 +1,6 @@
+.idea/
+
+# Setting files
+credentials.json
+token.json
+set-env.sh
