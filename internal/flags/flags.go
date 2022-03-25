@@ -5,10 +5,9 @@ import (
 	"flag"
 )
 
-var OktaFlag = flag.Bool("okta", false, "use Okta as IdP")
-var GoogleFlag = flag.Bool("google", false, "use Google as IdP")
-var DeleteUnmatchingGroupsFlag = flag.Bool("delete-unmatching-groups", false, "delete groups present in SDM but not in selected IdP data")
-var DeleteUnmatchingUsersFlag = flag.Bool("delete-unmatching-users", false, "delete users present in SDM but not in the selected IdP data")
+var GoogleFlag = flag.Bool("google", false, "use Google as a Source")
+var DeleteUnmatchingGroupsFlag = flag.Bool("delete-unmatching-groups", false, "delete groups present in SDM but not in selected Source data")
+var DeleteUnmatchingUsersFlag = flag.Bool("delete-unmatching-users", false, "delete users present in SDM but not in the selected Source data")
 var JsonFlag = flag.Bool("json", false, "dump a JSON report for debugging")
 var PlanFlag = flag.Bool("plan", false, "do not apply changes just show initial queries")
 
@@ -17,8 +16,8 @@ func init() {
 }
 
 func ValidateMandatoryFlags() error {
-	if (!*OktaFlag && !*GoogleFlag) || (*OktaFlag && *GoogleFlag) {
-		return errors.New("you need to specify one Identity Provider (IdP): Okta or Google\nUse -okta or -google")
+	if !*GoogleFlag {
+		return errors.New("you need to specify one Identity Provider (IdP/Source): Google\nUse -google")
 	}
 	return nil
 }

@@ -4,54 +4,51 @@ import (
 	"context"
 	"errors"
 	"os"
-	"scim-integrations/internal/idp"
+	"scim-integrations/internal/source"
 
 	"github.com/strongdm/scimsdk/scimsdk"
 	sdm "github.com/strongdm/strongdm-sdk-go"
 )
 
-type SDMService struct {
+type SDMSink struct {
 	client *scimsdk.Client
 }
 
-func NewSDMService() *SDMService {
+func NewSDMService() *SDMSink {
 	client := scimsdk.NewClient(os.Getenv("SDM_SCIM_TOKEN"), nil)
-	return &SDMService{client}
+	return &SDMSink{client}
 }
 
-func (service *SDMService) FetchUsers(ctx context.Context) ([]SDMUserRow, error) {
+func (service *SDMSink) FetchUsers(ctx context.Context) ([]SDMUserRow, error) {
 	groups, err := service.FetchGroups(ctx)
-	userGroups := map[string][]scimsdk.Group{}
+	if err != nil {
+		return nil, err
+	}
+	userGroups := separateGroupsByUser(groups)
+	// TODO: review scimsdk list pagination
+	userIterator := service.client.Users().List(ctx, nil)
+	users, err := sdmscimUsersWithGroupsToSink(userIterator, userGroups)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func separateGroupsByUser(groups []SDMGroupRow) map[string][]SDMGroupRow {
+	userGroups := map[string][]SDMGroupRow{}
 	for _, group := range groups {
 		for _, member := range group.Members {
 			if userGroups[member.ID] == nil {
-				userGroups[member.ID] = []scimsdk.Group{group}
+				userGroups[member.ID] = []SDMGroupRow{group}
 			} else {
 				userGroups[member.ID] = append(userGroups[member.ID], group)
 			}
 		}
 	}
-
-	// TODO: Review filter behavior with resourceType
-	userIterator := service.client.Users().List(ctx, nil /*"type:user"*/)
-	if err != nil {
-		return nil, err
-	}
-	var result []SDMUserRow
-	for userIterator.Next() {
-		user := userIterator.Value()
-		result = append(result, SDMUserRow{
-			User:   user,
-			Groups: userGroups[user.ID],
-		})
-	}
-	if userIterator.Err() != "" {
-		return nil, errors.New(userIterator.Err())
-	}
-	return result, nil
+	return userGroups
 }
 
-func (service *SDMService) CreateUser(ctx context.Context, user idp.IdPUser) (*scimsdk.User, error) {
+func (service *SDMSink) CreateUser(ctx context.Context, user source.SourceUser) (*SDMUserRow, error) {
 	response, err := service.client.Users().Create(ctx, scimsdk.CreateUser{
 		UserName:   user.UserName,
 		GivenName:  user.GivenName,
@@ -61,10 +58,10 @@ func (service *SDMService) CreateUser(ctx context.Context, user idp.IdPUser) (*s
 	if err != nil {
 		return nil, err
 	}
-	return response, nil
+	return sdmscimUserToSink(response), nil
 }
 
-func (service *SDMService) DeleteUser(ctx context.Context, userID string) error {
+func (service *SDMSink) DeleteUser(ctx context.Context, userID string) error {
 	_, err := service.client.Users().Delete(ctx, userID)
 	if err != nil {
 		return err
@@ -72,11 +69,12 @@ func (service *SDMService) DeleteUser(ctx context.Context, userID string) error 
 	return nil
 }
 
-func (service *SDMService) FetchGroups(ctx context.Context) ([]scimsdk.Group, error) {
+func (service *SDMSink) FetchGroups(ctx context.Context) ([]SDMGroupRow, error) {
 	groupIterator := service.client.Groups().List(ctx, nil)
-	var result []scimsdk.Group
+	var result []SDMGroupRow
 	for groupIterator.Next() {
-		result = append(result, *groupIterator.Value())
+		group := *groupIterator.Value()
+		result = append(result, *sdmscimGroupToSink(&group))
 	}
 	if groupIterator.Err() != "" {
 		return nil, errors.New(groupIterator.Err())
@@ -84,7 +82,7 @@ func (service *SDMService) FetchGroups(ctx context.Context) ([]scimsdk.Group, er
 	return result, nil
 }
 
-func (service *SDMService) AssignGroup(ctx context.Context, user *scimsdk.User, groupID string) error {
+func (service *SDMSink) AssignGroup(ctx context.Context, user *scimsdk.User, groupID string) error {
 	_, err := service.client.Groups().UpdateAddMembers(ctx, groupID, []scimsdk.GroupMember{
 		{
 			ID:    user.ID,
@@ -98,7 +96,7 @@ func (service *SDMService) AssignGroup(ctx context.Context, user *scimsdk.User, 
 	return nil
 }
 
-func (service *SDMService) CreateGroup(ctx context.Context, group SinkUserGroup) (*scimsdk.Group, error) {
+func (service *SDMSink) CreateGroup(ctx context.Context, group source.SourceUserGroup) (*SDMGroupRow, error) {
 	response, err := service.client.Groups().Create(ctx, scimsdk.CreateGroupBody{
 		DisplayName: group.DisplayName,
 		Members:     group.Members,
@@ -106,10 +104,10 @@ func (service *SDMService) CreateGroup(ctx context.Context, group SinkUserGroup)
 	if err != nil {
 		return nil, err
 	}
-	return response, nil
+	return sdmscimGroupToSink(response), nil
 }
 
-func (service *SDMService) ReplaceGroupMembers(ctx context.Context, group SinkUserGroup) error {
+func (service *SDMSink) ReplaceGroupMembers(ctx context.Context, group source.SourceUserGroup) error {
 	_, err := service.client.Groups().UpdateReplaceMembers(ctx, group.ID, group.Members)
 	if err != nil {
 		return err
@@ -117,7 +115,7 @@ func (service *SDMService) ReplaceGroupMembers(ctx context.Context, group SinkUs
 	return nil
 }
 
-func (service *SDMService) DeleteGroup(ctx context.Context, groupID string) error {
+func (service *SDMSink) DeleteGroup(ctx context.Context, groupID string) error {
 	_, err := service.client.Groups().Delete(ctx, groupID)
 	if err != nil {
 		return err

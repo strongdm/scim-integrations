@@ -6,11 +6,10 @@ import (
 	"log"
 	"os"
 	"scim-integrations/internal/flags"
-	"scim-integrations/internal/idp"
-	"scim-integrations/internal/sync"
+	"scim-integrations/internal/source"
+	"scim-integrations/internal/synchronizer"
 )
 
-// TODO: Add documentation
 // TODO: Add tests
 func main() {
 	err := flags.ValidateMandatoryFlags()
@@ -22,20 +21,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, "An error occurred setting up the environment: "+err.Error())
 		os.Exit(-1)
 	}
-	idp := idp.ByFlag(getFlagName())
-	rnr := sync.NewRunner()
-	err = rnr.Run(idp)
+	source := source.ByFlag(getFlagName())
+	snc := synchronizer.NewSynchronizer()
+	err = snc.Run(source)
 	if err != nil {
-		log.Fatal("An error occurred running IDP sync: " + err.Error())
+		log.Fatal("An error occurred running Source sync: " + err.Error())
 	}
-	fmt.Println("IdP sync ran successfully")
+	log.Println("Source sync ran successfully")
 }
 
 func getFlagName() string {
-	if *flags.OktaFlag {
-		return "okta"
+	if *flags.GoogleFlag {
+		return "google"
 	}
-	return "google"
+	return ""
 }
 
 func validateEnvironment() error {

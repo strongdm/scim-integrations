@@ -1,4 +1,4 @@
-package idp
+package source
 
 import (
 	"context"
@@ -12,19 +12,20 @@ import (
 	"scim-integrations/internal/utils"
 	"strings"
 
+	"github.com/strongdm/scimsdk/scimsdk"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/option"
 )
 
-type GoogleIdP struct{}
+type GoogleSource struct{}
 
-func NewGoogleIdP() GoogleIdP {
-	return GoogleIdP{}
+func NewGoogleSource() GoogleSource {
+	return GoogleSource{}
 }
 
-func (GoogleIdP) FetchUsers(ctx context.Context) ([]IdPUser, error) {
+func (GoogleSource) FetchUsers(ctx context.Context) ([]SourceUser, error) {
 	client, err := prepareGoogleHTTPClient(HTTPClient)
 	if err != nil {
 		return nil, err
@@ -34,7 +35,7 @@ func (GoogleIdP) FetchUsers(ctx context.Context) ([]IdPUser, error) {
 		return nil, err
 	}
 	var nextPageToken string
-	var users []IdPUser
+	var users []SourceUser
 	for {
 		response, err := svc.Users.List().Customer("my_customer").PageToken(nextPageToken).MaxResults(FETCH_PAGE_SIZE).Do()
 		if err != nil {
@@ -49,11 +50,37 @@ func (GoogleIdP) FetchUsers(ctx context.Context) ([]IdPUser, error) {
 	return users, nil
 }
 
-func googleUsersToSCIMUser(googleUsers []*admin.User) []IdPUser {
-	var users []IdPUser
+func (GoogleSource) ExtractGroupsFromUsers(users []SourceUser) []SourceUserGroup {
+	var groups []SourceUserGroup
+	mappedGroupMembers := map[string][]scimsdk.GroupMember{}
+	for _, user := range users {
+		for _, userGroup := range user.Groups {
+			if _, ok := mappedGroupMembers[userGroup]; !ok {
+				mappedGroupMembers[userGroup] = []scimsdk.GroupMember{
+					{
+						ID:    user.ID,
+						Email: user.UserName,
+					},
+				}
+			} else {
+				mappedGroupMembers[userGroup] = append(mappedGroupMembers[userGroup], scimsdk.GroupMember{
+					ID:    user.ID,
+					Email: user.UserName,
+				})
+			}
+		}
+	}
+	for groupName, members := range mappedGroupMembers {
+		groups = append(groups, SourceUserGroup{DisplayName: groupName, Members: members})
+	}
+	return groups
+}
+
+func googleUsersToSCIMUser(googleUsers []*admin.User) []SourceUser {
+	var users []SourceUser
 	var filteredGoogleUsers []*admin.User = filterGoogleUsersByOrganizationUnit(googleUsers)
 	for _, googleUser := range filteredGoogleUsers {
-		users = append(users, IdPUser{
+		users = append(users, SourceUser{
 			ID:         googleUser.Id,
 			UserName:   googleUser.PrimaryEmail,
 			GivenName:  googleUser.Name.GivenName,
