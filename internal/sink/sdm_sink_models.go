@@ -4,10 +4,10 @@ import "github.com/strongdm/scimsdk/scimsdk"
 
 type SDMUserRow struct {
 	*scimsdk.User
-	Role []scimsdk.Group
+	Groups []scimsdk.Group
 }
 
-type SDMRoleRow struct {
+type SDMGroupRow struct {
 	ID   string
 	Name string
 }

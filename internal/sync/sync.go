@@ -47,19 +47,19 @@ func (syncer *Syncer) Run(idp idp.BaseIdP) error {
 	syncer.report.IdPUserGroups = groups
 	sdmService := sink.NewSDMService()
 	if !*flags.PlanFlag {
-		log.Print("Synchronizing users and roles")
+		log.Print("Synchronizing users and groups")
 		err := NewUserSynchronize(sdmService, syncer.report).Sync(context.Background(), idpUsers)
 		if err != nil {
 			return err
 		}
 		log.Printf("%d SDM users in IdP", len(syncer.report.SDMGroupsInIdP))
 		log.Printf("%d SDM users not in IdP", len(syncer.report.SDMGroupsNotInIdP))
-		err = NewRoleSynchronize(sdmService, syncer.report).Sync(context.Background(), groups)
+		err = NewGroupSynchronize(sdmService, syncer.report).Sync(context.Background(), groups)
 		if err != nil {
-			return errors.New("error synchronizing roles: " + err.Error())
+			return errors.New("error synchronizing groups: " + err.Error())
 		}
-		log.Printf("%d SDM roles in IdP", len(syncer.report.SDMGroupsInIdP))
-		log.Printf("%d SDM roles not in IdP", len(syncer.report.SDMGroupsNotInIdP))
+		log.Printf("%d SDM groups in IdP", len(syncer.report.SDMGroupsInIdP))
+		log.Printf("%d SDM groups not in IdP", len(syncer.report.SDMGroupsNotInIdP))
 	}
 	syncer.report.Complete = time.Now()
 	fmt.Println(syncer.report.String())
@@ -104,6 +104,6 @@ func (rpt *Report) String() string {
 }
 
 func (rpt *Report) short() string {
-	return fmt.Sprintf("%d IdP users, %d strongDM users in IdP, %d strongDM roles in IdP\n",
+	return fmt.Sprintf("%d IdP users, %d strongDM users in IdP, %d strongDM groups in IdP\n",
 		len(rpt.IdPUsers), len(rpt.SDMUsersInIdP), len(rpt.SDMGroupsInIdP))
 }

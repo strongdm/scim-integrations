@@ -14,9 +14,6 @@ type UserSynchronize struct {
 	report  *Report
 }
 
-type roleList []sink.SDMRoleRow
-type userList []sink.SDMUserRow
-
 func NewUserSynchronize(service *sink.SDMService, report *Report) *UserSynchronize {
 	return &UserSynchronize{
 		service: service,

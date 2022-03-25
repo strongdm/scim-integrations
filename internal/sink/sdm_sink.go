@@ -20,14 +20,14 @@ func NewSDMService() *SDMService {
 }
 
 func (service *SDMService) FetchUsers(ctx context.Context) ([]SDMUserRow, error) {
-	roles, err := service.FetchRoles(ctx)
-	userRoles := map[string][]scimsdk.Group{}
-	for _, role := range roles {
-		for _, member := range role.Members {
-			if userRoles[member.ID] == nil {
-				userRoles[member.ID] = []scimsdk.Group{role}
+	groups, err := service.FetchGroups(ctx)
+	userGroups := map[string][]scimsdk.Group{}
+	for _, group := range groups {
+		for _, member := range group.Members {
+			if userGroups[member.ID] == nil {
+				userGroups[member.ID] = []scimsdk.Group{group}
 			} else {
-				userRoles[member.ID] = append(userRoles[member.ID], role)
+				userGroups[member.ID] = append(userGroups[member.ID], group)
 			}
 		}
 	}
@@ -41,8 +41,8 @@ func (service *SDMService) FetchUsers(ctx context.Context) ([]SDMUserRow, error)
 	for userIterator.Next() {
 		user := userIterator.Value()
 		result = append(result, SDMUserRow{
-			User: user,
-			Role: userRoles[user.ID],
+			User:   user,
+			Groups: userGroups[user.ID],
 		})
 	}
 	if userIterator.Err() != "" {
@@ -72,7 +72,7 @@ func (service *SDMService) DeleteUser(ctx context.Context, userID string) error 
 	return nil
 }
 
-func (service *SDMService) FetchRoles(ctx context.Context) ([]scimsdk.Group, error) {
+func (service *SDMService) FetchGroups(ctx context.Context) ([]scimsdk.Group, error) {
 	groupIterator := service.client.Groups().List(ctx, nil)
 	var result []scimsdk.Group
 	for groupIterator.Next() {
@@ -84,8 +84,8 @@ func (service *SDMService) FetchRoles(ctx context.Context) ([]scimsdk.Group, err
 	return result, nil
 }
 
-func (service *SDMService) AssignRole(ctx context.Context, user *scimsdk.User, roleID string) error {
-	_, err := service.client.Groups().UpdateAddMembers(ctx, roleID, []scimsdk.GroupMember{
+func (service *SDMService) AssignGroup(ctx context.Context, user *scimsdk.User, groupID string) error {
+	_, err := service.client.Groups().UpdateAddMembers(ctx, groupID, []scimsdk.GroupMember{
 		{
 			ID:    user.ID,
 			Email: user.UserName,
@@ -98,7 +98,7 @@ func (service *SDMService) AssignRole(ctx context.Context, user *scimsdk.User, r
 	return nil
 }
 
-func (service *SDMService) CreateRole(ctx context.Context, group SinkUserGroup) (*scimsdk.Group, error) {
+func (service *SDMService) CreateGroup(ctx context.Context, group SinkUserGroup) (*scimsdk.Group, error) {
 	response, err := service.client.Groups().Create(ctx, scimsdk.CreateGroupBody{
 		DisplayName: group.DisplayName,
 		Members:     group.Members,
@@ -117,8 +117,8 @@ func (service *SDMService) ReplaceGroupMembers(ctx context.Context, group SinkUs
 	return nil
 }
 
-func (service *SDMService) DeleteRole(ctx context.Context, roleID string) error {
-	_, err := service.client.Groups().Delete(ctx, roleID)
+func (service *SDMService) DeleteGroup(ctx context.Context, groupID string) error {
+	_, err := service.client.Groups().Delete(ctx, groupID)
 	if err != nil {
 		return err
 	}

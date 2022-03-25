@@ -8,25 +8,25 @@ import (
 	"github.com/strongdm/scimsdk/scimsdk"
 )
 
-type RoleSynchronize struct {
+type GroupSynchronize struct {
 	service *sink.SDMService
 	report  *Report
 }
 
-func NewRoleSynchronize(service *sink.SDMService, report *Report) *RoleSynchronize {
-	return &RoleSynchronize{
+func NewGroupSynchronize(service *sink.SDMService, report *Report) *GroupSynchronize {
+	return &GroupSynchronize{
 		service: service,
 		report:  report,
 	}
 }
 
-func (sync *RoleSynchronize) Sync(ctx context.Context, idpGroups []sink.SinkUserGroup) error {
-	sdmGroups, err := sync.service.FetchRoles(ctx)
+func (sync *GroupSynchronize) Sync(ctx context.Context, idpGroups []sink.SinkUserGroup) error {
+	sdmGroups, err := sync.service.FetchGroups(ctx)
 	if err != nil {
 		return err
 	}
 	newGroups, existentGroups, unmatchingGroups := calculateSDMGroupsIntersection(sdmGroups, idpGroups)
-	createdGroups, err := sync.createRoles(ctx, newGroups)
+	createdGroups, err := sync.createGroups(ctx, newGroups)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (sync *RoleSynchronize) Sync(ctx context.Context, idpGroups []sink.SinkUser
 	if err != nil {
 		return err
 	}
-	if *flags.DeleteUnmatchingRolesFlag {
+	if *flags.DeleteUnmatchingGroupsFlag {
 		err = sync.deleteUnmatchingGroups(ctx, unmatchingGroups)
 		if err != nil {
 			return err
@@ -85,19 +85,19 @@ func removeSDMGroupsIntersection(sdmGroups []scimsdk.Group, existentIdPGroups []
 	return unmatchingGroups
 }
 
-func (sync *RoleSynchronize) createRoles(ctx context.Context, sinkGroups []sink.SinkUserGroup) ([]scimsdk.Group, error) {
-	var finalRoles []scimsdk.Group
+func (sync *GroupSynchronize) createGroups(ctx context.Context, sinkGroups []sink.SinkUserGroup) ([]scimsdk.Group, error) {
+	var finalGroups []scimsdk.Group
 	for _, group := range sinkGroups {
-		role, err := sync.service.CreateRole(ctx, group)
+		group, err := sync.service.CreateGroup(ctx, group)
 		if err != nil {
 			return nil, err
 		}
-		finalRoles = append(finalRoles, *role)
+		finalGroups = append(finalGroups, *group)
 	}
-	return finalRoles, nil
+	return finalGroups, nil
 }
 
-func (sync *RoleSynchronize) replaceGroupMembers(ctx context.Context, sinkGroups []sink.SinkUserGroup) error {
+func (sync *GroupSynchronize) replaceGroupMembers(ctx context.Context, sinkGroups []sink.SinkUserGroup) error {
 	for _, group := range sinkGroups {
 		err := sync.service.ReplaceGroupMembers(ctx, group)
 		if err != nil {
@@ -107,9 +107,9 @@ func (sync *RoleSynchronize) replaceGroupMembers(ctx context.Context, sinkGroups
 	return nil
 }
 
-func (sync *RoleSynchronize) deleteUnmatchingGroups(ctx context.Context, sdmGroups []scimsdk.Group) error {
+func (sync *GroupSynchronize) deleteUnmatchingGroups(ctx context.Context, sdmGroups []scimsdk.Group) error {
 	for _, group := range sdmGroups {
-		err := sync.service.DeleteRole(ctx, group.ID)
+		err := sync.service.DeleteGroup(ctx, group.ID)
 		if err != nil {
 			return err
 		}
