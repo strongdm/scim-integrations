@@ -3,7 +3,6 @@ package sink
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"scim-integrations/internal/idp"
 
@@ -53,7 +52,6 @@ func (service *SDMService) FetchUsers(ctx context.Context) ([]SDMUserRow, error)
 }
 
 func (service *SDMService) CreateUser(ctx context.Context, user idp.IdPUser) (*scimsdk.User, error) {
-	fmt.Println(user)
 	response, err := service.client.Users().Create(ctx, scimsdk.CreateUser{
 		UserName:   user.UserName,
 		GivenName:  user.GivenName,
@@ -84,15 +82,6 @@ func (service *SDMService) FetchRoles(ctx context.Context) ([]scimsdk.Group, err
 		return nil, errors.New(groupIterator.Err())
 	}
 	return result, nil
-}
-
-func (service *SDMService) FindRoleID(groupName string, roles []SDMRoleRow) (string, error) {
-	for _, role := range roles {
-		if role.Name == groupName {
-			return role.ID, nil
-		}
-	}
-	return "", errors.New("cannot find roleID for roleName = " + groupName)
 }
 
 func (service *SDMService) AssignRole(ctx context.Context, user *scimsdk.User, roleID string) error {

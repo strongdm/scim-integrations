@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"scim-integrations/internal/utils"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -32,21 +33,26 @@ func (GoogleIdP) FetchUsers(ctx context.Context) ([]IdPUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	response, err := svc.Users.List().Customer("my_customer").MaxResults(FETCH_PAGE_SIZE).Do()
-	if err != nil {
-		return nil, err
-	}
-	return googleUsersToSCIMUser(response), nil
-}
-
-func getGroups(orgUnitPath string) []string {
-	orgUnits := strings.Split(orgUnitPath, "/")
-	return []string{orgUnits[len(orgUnits)-1]}
-}
-
-func googleUsersToSCIMUser(response *admin.Users) []IdPUser {
+	var nextPageToken string
 	var users []IdPUser
-	for _, googleUser := range response.Users {
+	for {
+		response, err := svc.Users.List().Customer("my_customer").PageToken(nextPageToken).MaxResults(FETCH_PAGE_SIZE).Do()
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, googleUsersToSCIMUser(response.Users)...)
+		if response.NextPageToken == "" {
+			break
+		}
+		nextPageToken = response.NextPageToken
+	}
+	return users, nil
+}
+
+func googleUsersToSCIMUser(googleUsers []*admin.User) []IdPUser {
+	var users []IdPUser
+	var filteredGoogleUsers []*admin.User = filterGoogleUsersByOrganizationUnit(googleUsers)
+	for _, googleUser := range filteredGoogleUsers {
 		users = append(users, IdPUser{
 			ID:         googleUser.Id,
 			UserName:   googleUser.PrimaryEmail,
@@ -56,6 +62,27 @@ func googleUsersToSCIMUser(response *admin.Users) []IdPUser {
 		})
 	}
 	return users
+}
+
+func filterGoogleUsersByOrganizationUnit(users []*admin.User) []*admin.User {
+	var filteredUsers []*admin.User
+	var organizations []string = getOrganizationsFilter()
+	if organizations == nil {
+		return users
+	}
+	for _, user := range users {
+		units := strings.Split(user.OrgUnitPath, "/")
+		lastOrgUnit := units[len(units)-1]
+		if utils.StringArrayContains(organizations, lastOrgUnit) {
+			filteredUsers = append(filteredUsers, user)
+		}
+	}
+	return filteredUsers
+}
+
+func getGroups(orgUnitPath string) []string {
+	orgUnits := strings.Split(orgUnitPath, "/")
+	return []string{orgUnits[len(orgUnits)-1]}
 }
 
 func prepareGoogleHTTPClient(client *http.Client) (*http.Client, error) {
@@ -120,4 +147,12 @@ func getGoogleConfig() (*oauth2.Config, error) {
 		return nil, errors.New("Unable to parse client secret file to config: " + err.Error())
 	}
 	return config, nil
+}
+
+func getOrganizationsFilter() []string {
+	orgFilter := os.Getenv("SDM_SHIM_GOOGLE_ORGANIZATIONS_FILTER")
+	if orgFilter == "" {
+		return nil
+	}
+	return strings.Split(orgFilter, " ")
 }
