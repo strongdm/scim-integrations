@@ -158,11 +158,3 @@ func getGoogleConfig() (*oauth2.Config, error) {
 	}
 	return config, nil
 }
-
-func getOrganizationsFilter() []string {
-	orgFilter := os.Getenv("SDM_SCIM_GOOGLE_ORGANIZATIONS_FILTER")
-	if orgFilter == "" {
-		return nil
-	}
-	return strings.Split(orgFilter, " ")
-}
