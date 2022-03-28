@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"scim-integrations/internal/utils"
+	"scim-integrations/internal/flags"
 	"strings"
 
 	"github.com/strongdm/scimsdk/scimsdk"
@@ -25,8 +25,8 @@ func NewGoogleSource() GoogleSource {
 	return GoogleSource{}
 }
 
-func (GoogleSource) FetchUsers(ctx context.Context) ([]SourceUser, error) {
-	client, err := prepareGoogleHTTPClient(HTTPClient)
+func (GoogleSource) FetchUsers(ctx context.Context) ([]User, error) {
+	client, err := prepareGoogleHTTPClient()
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +35,9 @@ func (GoogleSource) FetchUsers(ctx context.Context) ([]SourceUser, error) {
 		return nil, err
 	}
 	var nextPageToken string
-	var users []SourceUser
+	var users []User
 	for {
-		response, err := svc.Users.List().Customer("my_customer").PageToken(nextPageToken).MaxResults(FETCH_PAGE_SIZE).Do()
+		response, err := svc.Users.List().Query(*flags.QueryFlag).Customer("my_customer").PageToken(nextPageToken).MaxResults(FETCH_PAGE_SIZE).Do()
 		if err != nil {
 			return nil, err
 		}
@@ -50,8 +50,8 @@ func (GoogleSource) FetchUsers(ctx context.Context) ([]SourceUser, error) {
 	return users, nil
 }
 
-func (GoogleSource) ExtractGroupsFromUsers(users []SourceUser) []SourceUserGroup {
-	var groups []SourceUserGroup
+func (GoogleSource) ExtractGroupsFromUsers(users []User) []UserGroup {
+	var groups []UserGroup
 	mappedGroupMembers := map[string][]scimsdk.GroupMember{}
 	for _, user := range users {
 		for _, userGroup := range user.Groups {
@@ -71,16 +71,15 @@ func (GoogleSource) ExtractGroupsFromUsers(users []SourceUser) []SourceUserGroup
 		}
 	}
 	for groupName, members := range mappedGroupMembers {
-		groups = append(groups, SourceUserGroup{DisplayName: groupName, Members: members})
+		groups = append(groups, UserGroup{DisplayName: groupName, Members: members})
 	}
 	return groups
 }
 
-func googleUsersToSCIMUser(googleUsers []*admin.User) []SourceUser {
-	var users []SourceUser
-	var filteredGoogleUsers []*admin.User = filterGoogleUsersByOrganizationUnit(googleUsers)
-	for _, googleUser := range filteredGoogleUsers {
-		users = append(users, SourceUser{
+func googleUsersToSCIMUser(googleUsers []*admin.User) []User {
+	var users []User
+	for _, googleUser := range googleUsers {
+		users = append(users, User{
 			ID:         googleUser.Id,
 			UserName:   googleUser.PrimaryEmail,
 			GivenName:  googleUser.Name.GivenName,
@@ -91,28 +90,12 @@ func googleUsersToSCIMUser(googleUsers []*admin.User) []SourceUser {
 	return users
 }
 
-func filterGoogleUsersByOrganizationUnit(users []*admin.User) []*admin.User {
-	var filteredUsers []*admin.User
-	var organizations []string = getOrganizationsFilter()
-	if organizations == nil {
-		return users
-	}
-	for _, user := range users {
-		units := strings.Split(user.OrgUnitPath, "/")
-		lastOrgUnit := units[len(units)-1]
-		if utils.StringArrayContains(organizations, lastOrgUnit) {
-			filteredUsers = append(filteredUsers, user)
-		}
-	}
-	return filteredUsers
-}
-
 func getGroups(orgUnitPath string) []string {
 	orgUnits := strings.Split(orgUnitPath, "/")
 	return []string{orgUnits[len(orgUnits)-1]}
 }
 
-func prepareGoogleHTTPClient(client *http.Client) (*http.Client, error) {
+func prepareGoogleHTTPClient() (*http.Client, error) {
 	config, err := getGoogleConfig()
 	if err != nil {
 		return nil, err

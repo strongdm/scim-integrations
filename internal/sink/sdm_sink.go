@@ -25,7 +25,6 @@ func (service *SDMSink) FetchUsers(ctx context.Context) ([]SDMUserRow, error) {
 		return nil, err
 	}
 	userGroups := separateGroupsByUser(groups)
-	// TODO: review scimsdk list pagination
 	userIterator := service.client.Users().List(ctx, nil)
 	users, err := sdmscimUsersWithGroupsToSink(userIterator, userGroups)
 	if err != nil {
@@ -48,7 +47,7 @@ func separateGroupsByUser(groups []SDMGroupRow) map[string][]SDMGroupRow {
 	return userGroups
 }
 
-func (service *SDMSink) CreateUser(ctx context.Context, user source.SourceUser) (*SDMUserRow, error) {
+func (service *SDMSink) CreateUser(ctx context.Context, user source.User) (*SDMUserRow, error) {
 	response, err := service.client.Users().Create(ctx, scimsdk.CreateUser{
 		UserName:   user.UserName,
 		GivenName:  user.GivenName,
@@ -96,7 +95,7 @@ func (service *SDMSink) AssignGroup(ctx context.Context, user *scimsdk.User, gro
 	return nil
 }
 
-func (service *SDMSink) CreateGroup(ctx context.Context, group source.SourceUserGroup) (*SDMGroupRow, error) {
+func (service *SDMSink) CreateGroup(ctx context.Context, group source.UserGroup) (*SDMGroupRow, error) {
 	response, err := service.client.Groups().Create(ctx, scimsdk.CreateGroupBody{
 		DisplayName: group.DisplayName,
 		Members:     group.Members,
@@ -107,7 +106,7 @@ func (service *SDMSink) CreateGroup(ctx context.Context, group source.SourceUser
 	return sdmscimGroupToSink(response), nil
 }
 
-func (service *SDMSink) ReplaceGroupMembers(ctx context.Context, group source.SourceUserGroup) error {
+func (service *SDMSink) ReplaceGroupMembers(ctx context.Context, group source.UserGroup) error {
 	_, err := service.client.Groups().UpdateReplaceMembers(ctx, group.ID, group.Members)
 	if err != nil {
 		return err

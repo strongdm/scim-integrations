@@ -2,7 +2,7 @@ package source
 
 import "github.com/strongdm/scimsdk/scimsdk"
 
-type SourceUser struct {
+type User struct {
 	ID         string
 	UserName   string
 	GivenName  string
@@ -11,7 +11,7 @@ type SourceUser struct {
 	Groups     []string
 }
 
-type SourceUserGroup struct {
+type UserGroup struct {
 	ID          string
 	DisplayName string
 	Members     []scimsdk.GroupMember

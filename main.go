@@ -25,7 +25,7 @@ func main() {
 	snc := synchronizer.NewSynchronizer()
 	err = snc.Run(source)
 	if err != nil {
-		log.Fatal("An error occurred running Source sync: " + err.Error())
+		fmt.Fprintf(os.Stderr, "An error occurred running Source sync: %s", err.Error())
 	}
 	log.Println("Source sync ran successfully")
 }

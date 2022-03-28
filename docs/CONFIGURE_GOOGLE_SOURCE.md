@@ -10,6 +10,6 @@ To use Google Directory as a Source, you must perform the following steps:
 
 **A user can only be assigned to one OrgUnit at a time**
 
-### Optional Environment
+### Additional flags
 
-- `SDM_SCIM_GOOGLE_ORGANIZATIONS_FILTER` - filter Google Directory users with a specific organization unit. e.g.: "engineering support"
+To add a filter to the IdP search, you can use the `-query` flag refering to the [Google Users Search Documentation](https://developers.google.com/admin-sdk/directory/v1/guides/search-users)

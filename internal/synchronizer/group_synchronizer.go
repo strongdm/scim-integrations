@@ -19,20 +19,20 @@ func NewGroupSynchronize(service *sink.SDMSink, report *Report) *GroupSynchroniz
 	}
 }
 
-func (sync *GroupSynchronizer) Sync(ctx context.Context, newGroups []source.SourceUserGroup, existentGroups []source.SourceUserGroup, unmatchingGroups []sink.SDMGroupRow) error {
-	err := sync.createGroups(ctx, newGroups)
+func (s *GroupSynchronizer) Sync(ctx context.Context) error {
+	err := s.createGroups(ctx, s.report.IdPUserGroupsToAdd)
 	if err != nil {
 		return err
 	}
-	err = sync.replaceGroupMembers(ctx, existentGroups)
+	err = s.replaceGroupMembers(ctx, s.report.IdPUserGroupsInSDM)
 	if err != nil {
 		return err
 	}
 	if err != nil {
 		return err
 	}
-	if *flags.DeleteUnmatchingGroupsFlag {
-		err = sync.deleteUnmatchingGroups(ctx, unmatchingGroups)
+	if *flags.DeleteGroupsNotInIdPFlag {
+		err = s.deleteUnmatchingGroups(ctx, s.report.SDMGroupsNotInIdP)
 		if err != nil {
 			return err
 		}
@@ -40,14 +40,14 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, newGroups []source.Sour
 	return nil
 }
 
-func (synchronizer *GroupSynchronizer) SyncGroupsData(idpGroups []source.SourceUserGroup) error {
-	sdmGroups, err := synchronizer.service.FetchGroups(context.Background())
+func (s *GroupSynchronizer) EnrichReport() error {
+	sdmGroups, err := s.service.FetchGroups(context.Background())
 	if err != nil {
 		return err
 	}
-	var existentGroups []source.SourceUserGroup
-	var newGroups []source.SourceUserGroup
-	for _, iGroup := range idpGroups {
+	var existentGroups []source.UserGroup
+	var newGroups []source.UserGroup
+	for _, iGroup := range s.report.IdPUserGroups {
 		var found bool
 		for _, group := range sdmGroups {
 			if iGroup.DisplayName == group.DisplayName {
@@ -62,14 +62,14 @@ func (synchronizer *GroupSynchronizer) SyncGroupsData(idpGroups []source.SourceU
 			existentGroups = append(existentGroups, iGroup)
 		}
 	}
-	unmatchingGroups := removeSDMGroupsIntersection(sdmGroups, idpGroups)
-	synchronizer.report.SourceUserGroupsToAdd = newGroups
-	synchronizer.report.SourceMatchingUserGroups = existentGroups
-	synchronizer.report.SDMUnmatchingGroups = unmatchingGroups
+	groupsNotInIdP := removeSDMGroupsIntersection(sdmGroups, s.report.IdPUserGroups)
+	s.report.IdPUserGroupsToAdd = newGroups
+	s.report.IdPUserGroupsInSDM = existentGroups
+	s.report.SDMGroupsNotInIdP = groupsNotInIdP
 	return nil
 }
 
-func removeSDMGroupsIntersection(sdmGroups []sink.SDMGroupRow, existentIdPGroups []source.SourceUserGroup) []sink.SDMGroupRow {
+func removeSDMGroupsIntersection(sdmGroups []sink.SDMGroupRow, existentIdPGroups []source.UserGroup) []sink.SDMGroupRow {
 	var unmatchingGroups []sink.SDMGroupRow
 	mappedGroups := map[string]bool{}
 	for _, group := range existentIdPGroups {
@@ -83,7 +83,7 @@ func removeSDMGroupsIntersection(sdmGroups []sink.SDMGroupRow, existentIdPGroups
 	return unmatchingGroups
 }
 
-func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []source.SourceUserGroup) error {
+func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []source.UserGroup) error {
 	for _, group := range sinkGroups {
 		_, err := sync.service.CreateGroup(ctx, group)
 		if err != nil {
@@ -93,7 +93,7 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []so
 	return nil
 }
 
-func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, sinkGroups []source.SourceUserGroup) error {
+func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, sinkGroups []source.UserGroup) error {
 	for _, group := range sinkGroups {
 		err := sync.service.ReplaceGroupMembers(ctx, group)
 		if err != nil {

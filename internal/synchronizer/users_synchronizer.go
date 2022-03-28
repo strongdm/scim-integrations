@@ -19,13 +19,13 @@ func NewUserSynchronize(service *sink.SDMSink, report *Report) *UserSynchronizer
 	}
 }
 
-func (sync *UserSynchronizer) Sync(ctx context.Context, newUsers []source.SourceUser, deletedUsers []sink.SDMUserRow) error {
-	err := sync.createUsers(ctx, newUsers)
+func (s *UserSynchronizer) Sync(ctx context.Context) error {
+	err := s.createUsers(ctx, s.report.IdPUsersToAdd)
 	if err != nil {
 		return err
 	}
-	if *flags.DeleteUnmatchingUsersFlag {
-		err = sync.DeleteUnmatchingSDMUsers(ctx, deletedUsers)
+	if *flags.DeleteUsersNotInIdPFlag {
+		err = s.DeleteUnmatchingSDMUsers(ctx, s.report.SDMUsersNotInIdP)
 		if err != nil {
 			return err
 		}
@@ -33,14 +33,14 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, newUsers []source.Source
 	return nil
 }
 
-func (synchronizer *UserSynchronizer) SyncUsersData(idpUsers []source.SourceUser) error {
-	sdmUsers, err := synchronizer.service.FetchUsers(context.Background())
+func (s *UserSynchronizer) EnrichReport() error {
+	sdmUsers, err := s.service.FetchUsers(context.Background())
 	if err != nil {
 		return err
 	}
-	var existentUsers []source.SourceUser
-	var newUsers []source.SourceUser
-	for _, iuser := range idpUsers {
+	var existentUsers []source.User
+	var newUsers []source.User
+	for _, iuser := range s.report.IdPUsers {
 		var found bool
 		for _, user := range sdmUsers {
 			if iuser.UserName == user.UserName {
@@ -54,28 +54,28 @@ func (synchronizer *UserSynchronizer) SyncUsersData(idpUsers []source.SourceUser
 			existentUsers = append(existentUsers, iuser)
 		}
 	}
-	unmatchingUsers := removeSDMUsersIntersection(sdmUsers, idpUsers)
-	synchronizer.report.SourceUsersToAdd = newUsers
-	synchronizer.report.SourceMatchingUsers = existentUsers
-	synchronizer.report.SDMUnmatchingUsers = unmatchingUsers
+	usersNotInIdP := removeSDMUsersIntersection(sdmUsers, s.report.IdPUsers)
+	s.report.IdPUsersToAdd = newUsers
+	s.report.IdPUsersInSDM = existentUsers
+	s.report.SDMUsersNotInIdP = usersNotInIdP
 	return nil
 }
 
-func removeSDMUsersIntersection(sdmUsers []sink.SDMUserRow, existentIdPUsers []source.SourceUser) []sink.SDMUserRow {
+func removeSDMUsersIntersection(sdmUsers []sink.SDMUserRow, existentIdPUsers []source.User) []sink.SDMUserRow {
 	var unmatchingUsers []sink.SDMUserRow
 	mappedUsers := map[string]bool{}
 	for _, user := range existentIdPUsers {
-		mappedUsers[user.ID] = true
+		mappedUsers[user.UserName] = true
 	}
 	for _, user := range sdmUsers {
-		if _, ok := mappedUsers[user.ID]; !ok {
+		if _, ok := mappedUsers[user.UserName]; !ok {
 			unmatchingUsers = append(unmatchingUsers, user)
 		}
 	}
 	return unmatchingUsers
 }
 
-func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source.SourceUser) error {
+func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source.User) error {
 	for _, idpUser := range idpUsers {
 		_, err := sync.service.CreateUser(ctx, idpUser)
 		if err != nil {

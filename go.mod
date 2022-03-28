@@ -16,7 +16,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/strongdm/scimsdk v1.0.7
+	github.com/strongdm/scimsdk v1.0.8
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
