@@ -8,14 +8,12 @@ import (
 )
 
 type GroupSynchronizer struct {
-	service *sink.SDMSink
-	report  *Report
+	report *Report
 }
 
-func NewGroupSynchronize(service *sink.SDMSink, report *Report) *GroupSynchronizer {
+func NewGroupSynchronizer(report *Report) *GroupSynchronizer {
 	return &GroupSynchronizer{
-		service: service,
-		report:  report,
+		report: report,
 	}
 }
 
@@ -41,7 +39,7 @@ func (s *GroupSynchronizer) Sync(ctx context.Context) error {
 }
 
 func (s *GroupSynchronizer) EnrichReport() error {
-	sdmGroups, err := s.service.FetchGroups(context.Background())
+	sdmGroups, err := sink.FetchGroups(context.Background())
 	if err != nil {
 		return err
 	}
@@ -85,7 +83,7 @@ func removeSDMGroupsIntersection(sdmGroups []sink.SDMGroupRow, existentIdPGroups
 
 func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []source.UserGroup) error {
 	for _, group := range sinkGroups {
-		_, err := sync.service.CreateGroup(ctx, group)
+		_, err := sink.CreateGroup(ctx, group)
 		if err != nil {
 			return err
 		}
@@ -95,7 +93,7 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []so
 
 func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, sinkGroups []source.UserGroup) error {
 	for _, group := range sinkGroups {
-		err := sync.service.ReplaceGroupMembers(ctx, group)
+		err := sink.ReplaceGroupMembers(ctx, group)
 		if err != nil {
 			return err
 		}
@@ -105,7 +103,7 @@ func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, sinkGrou
 
 func (sync *GroupSynchronizer) deleteUnmatchingGroups(ctx context.Context, sdmGroups []sink.SDMGroupRow) error {
 	for _, group := range sdmGroups {
-		err := sync.service.DeleteGroup(ctx, group.ID)
+		err := sink.DeleteGroup(ctx, group.ID)
 		if err != nil {
 			return err
 		}

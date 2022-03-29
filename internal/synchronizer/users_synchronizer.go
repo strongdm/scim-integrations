@@ -8,14 +8,12 @@ import (
 )
 
 type UserSynchronizer struct {
-	service *sink.SDMSink
-	report  *Report
+	report *Report
 }
 
-func NewUserSynchronize(service *sink.SDMSink, report *Report) *UserSynchronizer {
+func NewUserSynchronizer(report *Report) *UserSynchronizer {
 	return &UserSynchronizer{
-		service: service,
-		report:  report,
+		report: report,
 	}
 }
 
@@ -34,7 +32,7 @@ func (s *UserSynchronizer) Sync(ctx context.Context) error {
 }
 
 func (s *UserSynchronizer) EnrichReport() error {
-	sdmUsers, err := s.service.FetchUsers(context.Background())
+	sdmUsers, err := sink.FetchUsers(context.Background())
 	if err != nil {
 		return err
 	}
@@ -77,7 +75,7 @@ func removeSDMUsersIntersection(sdmUsers []sink.SDMUserRow, existentIdPUsers []s
 
 func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source.User) error {
 	for _, idpUser := range idpUsers {
-		_, err := sync.service.CreateUser(ctx, idpUser)
+		_, err := sink.CreateUser(ctx, idpUser)
 		if err != nil {
 			return err
 		}
@@ -87,7 +85,7 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source
 
 func (sync *UserSynchronizer) DeleteUnmatchingSDMUsers(ctx context.Context, users []sink.SDMUserRow) error {
 	for _, user := range users {
-		err := sync.service.DeleteUser(ctx, user.ID)
+		err := sink.DeleteUser(ctx, user.ID)
 		if err != nil {
 			return err
 		}

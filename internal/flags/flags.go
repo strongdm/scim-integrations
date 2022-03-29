@@ -11,10 +11,6 @@ var DeleteUsersNotInIdPFlag = flag.Bool("delete-users-missing-in-idp", false, "d
 var PlanFlag = flag.Bool("plan", false, "do not apply changes just show initial queries")
 var QueryFlag = flag.String("query", "", "pass a query according to the available query syntax for the selected IdP")
 
-func init() {
-	flag.Parse()
-}
-
 func ValidateMandatoryFlags() error {
 	if !*GoogleFlag {
 		return errors.New("you need to specify one Identity Provider (IdP): Google\nUse -google")

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"scim-integrations/internal/flags"
-	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"time"
 )
@@ -18,11 +17,10 @@ type Synchronizer struct {
 
 func NewSynchronizer() *Synchronizer {
 	report := &Report{}
-	sdmSink := sink.NewSDMService()
 	return &Synchronizer{
 		report:            report,
-		userSynchronizer:  NewUserSynchronize(sdmSink, report),
-		groupSynchronizer: NewGroupSynchronize(sdmSink, report),
+		userSynchronizer:  NewUserSynchronizer(report),
+		groupSynchronizer: NewGroupSynchronizer(report),
 	}
 }
 

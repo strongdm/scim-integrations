@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 // TODO: Add tests
 func main() {
+	flag.Parse()
 	err := flags.ValidateMandatoryFlags()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
