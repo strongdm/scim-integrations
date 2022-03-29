@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-const FETCH_PAGE_SIZE = 500
+const FetchPageSize = 500
 
 type BaseSource interface {
 	FetchUsers(ctx context.Context) ([]User, error)

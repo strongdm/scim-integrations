@@ -23,9 +23,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "An error occurred setting up the environment: "+err.Error())
 		os.Exit(-1)
 	}
-	source := source.ByFlag(getFlagName())
+	src := source.ByFlag(getFlagName())
 	snc := synchronizer.NewSynchronizer()
-	err = snc.Run(source)
+	err = snc.Run(src)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "An error occurred running Source sync: %s", err.Error())
 	}

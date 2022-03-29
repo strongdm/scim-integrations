@@ -21,6 +21,9 @@ import (
 
 type GoogleSource struct{}
 
+// DefaultGoogleCustomer refer to customer field in: https://developers.google.com/admin-sdk/directory/reference/rest/v1/users/list
+const DefaultGoogleCustomer = "my_customer"
+
 func NewGoogleSource() *GoogleSource {
 	return &GoogleSource{}
 }
@@ -77,7 +80,7 @@ func (*GoogleSource) ExtractGroupsFromUsers(users []User) []UserGroup {
 }
 
 func internalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*admin.Users, error) {
-	return service.Users.List().Query(*flags.QueryFlag).Customer("my_customer").PageToken(nextPageToken).MaxResults(FETCH_PAGE_SIZE).Do()
+	return service.Users.List().Query(*flags.QueryFlag).Customer(DefaultGoogleCustomer).PageToken(nextPageToken).MaxResults(FetchPageSize).Do()
 }
 
 func googleUsersToSCIMUser(googleUsers []*admin.User) []User {
@@ -148,7 +151,10 @@ func saveToken(path string, token *oauth2.Token) {
 		log.Fatalf("Unable to cache oauth token: %v", err)
 	}
 	defer file.Close()
-	json.NewEncoder(file).Encode(token)
+	err = json.NewEncoder(file).Encode(token)
+	if err != nil {
+		log.Fatalf("Unable to chache oauth token: %v", err)
+	}
 }
 
 func getGoogleConfig() (*oauth2.Config, error) {

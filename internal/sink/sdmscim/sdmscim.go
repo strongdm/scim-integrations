@@ -1,4 +1,4 @@
-package sink
+package sdmscim
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"scim-integrations/internal/source"
 
 	"github.com/strongdm/scimsdk/scimsdk"
-	sdm "github.com/strongdm/strongdm-sdk-go"
 )
 
 func newSDMSCIMClient() *scimsdk.Client {
@@ -15,7 +14,7 @@ func newSDMSCIMClient() *scimsdk.Client {
 	return client
 }
 
-func FetchUsers(ctx context.Context) ([]SDMUserRow, error) {
+func FetchUsers(ctx context.Context) ([]UserRow, error) {
 	groups, err := FetchGroups(ctx)
 	if err != nil {
 		return nil, err
@@ -23,19 +22,19 @@ func FetchUsers(ctx context.Context) ([]SDMUserRow, error) {
 	userGroups := separateGroupsByUser(groups)
 	client := newSDMSCIMClient()
 	userIterator := client.Users().List(ctx, nil)
-	users, err := sdmscimUsersWithGroupsToSink(userIterator, userGroups)
+	users, err := usersWithGroupsToSink(userIterator, userGroups)
 	if err != nil {
 		return nil, err
 	}
 	return users, nil
 }
 
-func separateGroupsByUser(groups []SDMGroupRow) map[string][]SDMGroupRow {
-	userGroups := map[string][]SDMGroupRow{}
+func separateGroupsByUser(groups []GroupRow) map[string][]GroupRow {
+	userGroups := map[string][]GroupRow{}
 	for _, group := range groups {
 		for _, member := range group.Members {
 			if userGroups[member.ID] == nil {
-				userGroups[member.ID] = []SDMGroupRow{group}
+				userGroups[member.ID] = []GroupRow{group}
 			} else {
 				userGroups[member.ID] = append(userGroups[member.ID], group)
 			}
@@ -44,7 +43,7 @@ func separateGroupsByUser(groups []SDMGroupRow) map[string][]SDMGroupRow {
 	return userGroups
 }
 
-func CreateUser(ctx context.Context, user source.User) (*SDMUserRow, error) {
+func CreateUser(ctx context.Context, user source.User) (*UserRow, error) {
 	client := newSDMSCIMClient()
 	response, err := client.Users().Create(ctx, scimsdk.CreateUser{
 		UserName:   user.UserName,
@@ -55,7 +54,7 @@ func CreateUser(ctx context.Context, user source.User) (*SDMUserRow, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sdmscimUserToSink(response), nil
+	return userToSink(response), nil
 }
 
 func DeleteUser(ctx context.Context, userID string) error {
@@ -67,13 +66,13 @@ func DeleteUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-func FetchGroups(ctx context.Context) ([]SDMGroupRow, error) {
+func FetchGroups(ctx context.Context) ([]GroupRow, error) {
 	client := newSDMSCIMClient()
 	groupIterator := client.Groups().List(ctx, nil)
-	var result []SDMGroupRow
+	var result []GroupRow
 	for groupIterator.Next() {
 		group := *groupIterator.Value()
-		result = append(result, *sdmscimGroupToSink(&group))
+		result = append(result, *groupToSink(&group))
 	}
 	if groupIterator.Err() != "" {
 		return nil, errors.New(groupIterator.Err())
@@ -81,22 +80,7 @@ func FetchGroups(ctx context.Context) ([]SDMGroupRow, error) {
 	return result, nil
 }
 
-func AssignGroup(ctx context.Context, user *scimsdk.User, groupID string) error {
-	client := newSDMSCIMClient()
-	_, err := client.Groups().UpdateAddMembers(ctx, groupID, []scimsdk.GroupMember{
-		{
-			ID:    user.ID,
-			Email: user.UserName,
-		},
-	})
-	var alreadyExistsErr *sdm.AlreadyExistsError
-	if err != nil && !errors.As(err, &alreadyExistsErr) {
-		return err
-	}
-	return nil
-}
-
-func CreateGroup(ctx context.Context, group source.UserGroup) (*SDMGroupRow, error) {
+func CreateGroup(ctx context.Context, group source.UserGroup) (*GroupRow, error) {
 	client := newSDMSCIMClient()
 	response, err := client.Groups().Create(ctx, scimsdk.CreateGroupBody{
 		DisplayName: group.DisplayName,
@@ -105,7 +89,7 @@ func CreateGroup(ctx context.Context, group source.UserGroup) (*SDMGroupRow, err
 	if err != nil {
 		return nil, err
 	}
-	return sdmscimGroupToSink(response), nil
+	return groupToSink(response), nil
 }
 
 func ReplaceGroupMembers(ctx context.Context, group source.UserGroup) error {

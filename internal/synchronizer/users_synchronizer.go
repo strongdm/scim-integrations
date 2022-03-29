@@ -3,7 +3,7 @@ package synchronizer
 import (
 	"context"
 	"scim-integrations/internal/flags"
-	"scim-integrations/internal/sink"
+	"scim-integrations/internal/sink/sdmscim"
 	"scim-integrations/internal/source"
 )
 
@@ -17,13 +17,13 @@ func NewUserSynchronizer(report *Report) *UserSynchronizer {
 	}
 }
 
-func (s *UserSynchronizer) Sync(ctx context.Context) error {
-	err := s.createUsers(ctx, s.report.IdPUsersToAdd)
+func (sync *UserSynchronizer) Sync(ctx context.Context) error {
+	err := sync.createUsers(ctx, sync.report.IdPUsersToAdd)
 	if err != nil {
 		return err
 	}
 	if *flags.DeleteUsersNotInIdPFlag {
-		err = s.DeleteUnmatchingSDMUsers(ctx, s.report.SDMUsersNotInIdP)
+		err = sync.DeleteDisjointedSDMUsers(ctx, sync.report.SDMUsersNotInIdP)
 		if err != nil {
 			return err
 		}
@@ -31,51 +31,51 @@ func (s *UserSynchronizer) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (s *UserSynchronizer) EnrichReport() error {
-	sdmUsers, err := sink.FetchUsers(context.Background())
+func (sync *UserSynchronizer) EnrichReport() error {
+	sdmUsers, err := sdmscim.FetchUsers(context.Background())
 	if err != nil {
 		return err
 	}
 	var existentUsers []source.User
 	var newUsers []source.User
-	for _, iuser := range s.report.IdPUsers {
+	for _, idpUser := range sync.report.IdPUsers {
 		var found bool
 		for _, user := range sdmUsers {
-			if iuser.UserName == user.UserName {
+			if idpUser.UserName == user.UserName {
 				found = true
 				break
 			}
 		}
 		if !found {
-			newUsers = append(newUsers, iuser)
+			newUsers = append(newUsers, idpUser)
 		} else {
-			existentUsers = append(existentUsers, iuser)
+			existentUsers = append(existentUsers, idpUser)
 		}
 	}
-	usersNotInIdP := removeSDMUsersIntersection(sdmUsers, s.report.IdPUsers)
-	s.report.IdPUsersToAdd = newUsers
-	s.report.IdPUsersInSDM = existentUsers
-	s.report.SDMUsersNotInIdP = usersNotInIdP
+	usersNotInIdP := removeSDMUsersIntersection(sdmUsers, sync.report.IdPUsers)
+	sync.report.IdPUsersToAdd = newUsers
+	sync.report.IdPUsersInSDM = existentUsers
+	sync.report.SDMUsersNotInIdP = usersNotInIdP
 	return nil
 }
 
-func removeSDMUsersIntersection(sdmUsers []sink.SDMUserRow, existentIdPUsers []source.User) []sink.SDMUserRow {
-	var unmatchingUsers []sink.SDMUserRow
+func removeSDMUsersIntersection(sdmUsers []sdmscim.UserRow, existentIdPUsers []source.User) []sdmscim.UserRow {
+	var disjointedUsers []sdmscim.UserRow
 	mappedUsers := map[string]bool{}
 	for _, user := range existentIdPUsers {
 		mappedUsers[user.UserName] = true
 	}
 	for _, user := range sdmUsers {
 		if _, ok := mappedUsers[user.UserName]; !ok {
-			unmatchingUsers = append(unmatchingUsers, user)
+			disjointedUsers = append(disjointedUsers, user)
 		}
 	}
-	return unmatchingUsers
+	return disjointedUsers
 }
 
 func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source.User) error {
 	for _, idpUser := range idpUsers {
-		_, err := sink.CreateUser(ctx, idpUser)
+		_, err := sdmscim.CreateUser(ctx, idpUser)
 		if err != nil {
 			return err
 		}
@@ -83,9 +83,9 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source
 	return nil
 }
 
-func (sync *UserSynchronizer) DeleteUnmatchingSDMUsers(ctx context.Context, users []sink.SDMUserRow) error {
+func (sync *UserSynchronizer) DeleteDisjointedSDMUsers(ctx context.Context, users []sdmscim.UserRow) error {
 	for _, user := range users {
-		err := sink.DeleteUser(ctx, user.ID)
+		err := sdmscim.DeleteUser(ctx, user.ID)
 		if err != nil {
 			return err
 		}

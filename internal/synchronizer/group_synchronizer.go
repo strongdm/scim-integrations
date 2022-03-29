@@ -3,7 +3,7 @@ package synchronizer
 import (
 	"context"
 	"scim-integrations/internal/flags"
-	"scim-integrations/internal/sink"
+	"scim-integrations/internal/sink/sdmscim"
 	"scim-integrations/internal/source"
 )
 
@@ -17,12 +17,12 @@ func NewGroupSynchronizer(report *Report) *GroupSynchronizer {
 	}
 }
 
-func (s *GroupSynchronizer) Sync(ctx context.Context) error {
-	err := s.createGroups(ctx, s.report.IdPUserGroupsToAdd)
+func (sync *GroupSynchronizer) Sync(ctx context.Context) error {
+	err := sync.createGroups(ctx, sync.report.IdPUserGroupsToAdd)
 	if err != nil {
 		return err
 	}
-	err = s.replaceGroupMembers(ctx, s.report.IdPUserGroupsInSDM)
+	err = sync.replaceGroupMembers(ctx, sync.report.IdPUserGroupsInSDM)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (s *GroupSynchronizer) Sync(ctx context.Context) error {
 		return err
 	}
 	if *flags.DeleteGroupsNotInIdPFlag {
-		err = s.deleteUnmatchingGroups(ctx, s.report.SDMGroupsNotInIdP)
+		err = sync.deleteDisjointedGroups(ctx, sync.report.SDMGroupsNotInIdP)
 		if err != nil {
 			return err
 		}
@@ -38,14 +38,14 @@ func (s *GroupSynchronizer) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (s *GroupSynchronizer) EnrichReport() error {
-	sdmGroups, err := sink.FetchGroups(context.Background())
+func (sync *GroupSynchronizer) EnrichReport() error {
+	sdmGroups, err := sdmscim.FetchGroups(context.Background())
 	if err != nil {
 		return err
 	}
 	var existentGroups []source.UserGroup
 	var newGroups []source.UserGroup
-	for _, iGroup := range s.report.IdPUserGroups {
+	for _, iGroup := range sync.report.IdPUserGroups {
 		var found bool
 		for _, group := range sdmGroups {
 			if iGroup.DisplayName == group.DisplayName {
@@ -60,30 +60,30 @@ func (s *GroupSynchronizer) EnrichReport() error {
 			existentGroups = append(existentGroups, iGroup)
 		}
 	}
-	groupsNotInIdP := removeSDMGroupsIntersection(sdmGroups, s.report.IdPUserGroups)
-	s.report.IdPUserGroupsToAdd = newGroups
-	s.report.IdPUserGroupsInSDM = existentGroups
-	s.report.SDMGroupsNotInIdP = groupsNotInIdP
+	groupsNotInIdP := removeSDMGroupsIntersection(sdmGroups, sync.report.IdPUserGroups)
+	sync.report.IdPUserGroupsToAdd = newGroups
+	sync.report.IdPUserGroupsInSDM = existentGroups
+	sync.report.SDMGroupsNotInIdP = groupsNotInIdP
 	return nil
 }
 
-func removeSDMGroupsIntersection(sdmGroups []sink.SDMGroupRow, existentIdPGroups []source.UserGroup) []sink.SDMGroupRow {
-	var unmatchingGroups []sink.SDMGroupRow
+func removeSDMGroupsIntersection(sdmGroups []sdmscim.GroupRow, existentIdPGroups []source.UserGroup) []sdmscim.GroupRow {
+	var disjointedGroups []sdmscim.GroupRow
 	mappedGroups := map[string]bool{}
 	for _, group := range existentIdPGroups {
 		mappedGroups[group.DisplayName] = true
 	}
 	for _, group := range sdmGroups {
 		if _, ok := mappedGroups[group.DisplayName]; !ok {
-			unmatchingGroups = append(unmatchingGroups, group)
+			disjointedGroups = append(disjointedGroups, group)
 		}
 	}
-	return unmatchingGroups
+	return disjointedGroups
 }
 
 func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []source.UserGroup) error {
 	for _, group := range sinkGroups {
-		_, err := sink.CreateGroup(ctx, group)
+		_, err := sdmscim.CreateGroup(ctx, group)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []so
 
 func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, sinkGroups []source.UserGroup) error {
 	for _, group := range sinkGroups {
-		err := sink.ReplaceGroupMembers(ctx, group)
+		err := sdmscim.ReplaceGroupMembers(ctx, group)
 		if err != nil {
 			return err
 		}
@@ -101,9 +101,9 @@ func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, sinkGrou
 	return nil
 }
 
-func (sync *GroupSynchronizer) deleteUnmatchingGroups(ctx context.Context, sdmGroups []sink.SDMGroupRow) error {
+func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, sdmGroups []sdmscim.GroupRow) error {
 	for _, group := range sdmGroups {
-		err := sink.DeleteGroup(ctx, group.ID)
+		err := sdmscim.DeleteGroup(ctx, group.ID)
 		if err != nil {
 			return err
 		}

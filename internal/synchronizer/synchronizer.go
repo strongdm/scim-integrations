@@ -50,8 +50,14 @@ func (s *Synchronizer) fillReport(src source.BaseSource) error {
 	sourceGroups := src.ExtractGroupsFromUsers(sourceUsers)
 	s.report.IdPUsers = sourceUsers
 	s.report.IdPUserGroups = sourceGroups
-	s.userSynchronizer.EnrichReport()
-	s.groupSynchronizer.EnrichReport()
+	err = s.userSynchronizer.EnrichReport()
+	if err != nil {
+		return err
+	}
+	err = s.groupSynchronizer.EnrichReport()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -3,7 +3,7 @@ package synchronizer
 import (
 	"encoding/json"
 	"fmt"
-	"scim-integrations/internal/sink"
+	"scim-integrations/internal/sink/sdmscim"
 	"scim-integrations/internal/source"
 	"time"
 )
@@ -20,8 +20,8 @@ type Report struct {
 	IdPUserGroupsToAdd []source.UserGroup
 	IdPUserGroupsInSDM []source.UserGroup
 
-	SDMUsersNotInIdP  []sink.SDMUserRow
-	SDMGroupsNotInIdP []sink.SDMGroupRow
+	SDMUsersNotInIdP  []sdmscim.UserRow
+	SDMGroupsNotInIdP []sdmscim.GroupRow
 }
 
 func (rpt *Report) String() string {
