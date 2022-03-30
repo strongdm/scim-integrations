@@ -38,15 +38,15 @@ $ export SDM_SCIM_TOKEN=<YOUR ADMIN TOKEN>
 ```
 $ go run main.go -help
   -delete-groups-missing-in-idp
-        delete groups present in SDM but not in selected Source data
+        delete groups present in SDM but not in the selected Identity Provider
   -delete-users-missing-in-idp
-        delete users present in SDM but not in the selected Source data
+        delete users present in SDM but not in the selected Identity Provider
   -google
-        use Google as a Source
+        use Google as Identity Provider
   -plan
         do not apply changes just show initial queries
   -query string
-        pass a query according to the available query syntax for the selected IdP
+        pass a query according to the available query syntax for the selected Identity Provider
 ```
 
 - Running Google IdP:
