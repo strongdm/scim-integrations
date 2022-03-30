@@ -17,3 +17,12 @@ type GroupMember struct {
 	ID    string
 	Email string
 }
+
+type ISinkClient interface {
+	Users() *ISinkUsersManager
+	Groups() *ISinkGroupsManager
+}
+
+type ISinkUsersManager interface{}
+
+type ISinkGroupsManager interface{}

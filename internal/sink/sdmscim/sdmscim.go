@@ -2,7 +2,6 @@ package sdmscim
 
 import (
 	"context"
-	"errors"
 	"os"
 	"scim-integrations/internal/source"
 
@@ -20,9 +19,8 @@ func FetchUsers(ctx context.Context) ([]UserRow, error) {
 		return nil, err
 	}
 	userGroups := separateGroupsByUser(groups)
-	client := newSDMSCIMClient()
-	userIterator := client.Users().List(ctx, nil)
-	users, err := usersWithGroupsToSink(userIterator, userGroups)
+	iterator := internalSCIMSDKUsersList(ctx, nil)
+	users, err := usersWithGroupsToSink(iterator, userGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +42,7 @@ func separateGroupsByUser(groups []GroupRow) map[string][]GroupRow {
 }
 
 func CreateUser(ctx context.Context, user source.User) (*UserRow, error) {
-	client := newSDMSCIMClient()
-	response, err := client.Users().Create(ctx, scimsdk.CreateUser{
+	response, err := internalSCIMSDKUsersCreate(ctx, scimsdk.CreateUser{
 		UserName:   user.UserName,
 		GivenName:  user.GivenName,
 		FamilyName: user.FamilyName,
@@ -58,8 +55,7 @@ func CreateUser(ctx context.Context, user source.User) (*UserRow, error) {
 }
 
 func DeleteUser(ctx context.Context, userID string) error {
-	client := newSDMSCIMClient()
-	_, err := client.Users().Delete(ctx, userID)
+	_, err := internalSCIMSDKUsersDelete(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -67,22 +63,20 @@ func DeleteUser(ctx context.Context, userID string) error {
 }
 
 func FetchGroups(ctx context.Context) ([]GroupRow, error) {
-	client := newSDMSCIMClient()
-	groupIterator := client.Groups().List(ctx, nil)
+	iterator := internalSCIMSDKGroupsList(ctx, nil)
 	var result []GroupRow
-	for groupIterator.Next() {
-		group := *groupIterator.Value()
+	for iterator.Next() {
+		group := *iterator.Value()
 		result = append(result, *groupToSink(&group))
 	}
-	if groupIterator.Err() != "" {
-		return nil, errors.New(groupIterator.Err())
+	if iterator.Err() != nil {
+		return nil, iterator.Err()
 	}
 	return result, nil
 }
 
 func CreateGroup(ctx context.Context, group source.UserGroup) (*GroupRow, error) {
-	client := newSDMSCIMClient()
-	response, err := client.Groups().Create(ctx, scimsdk.CreateGroupBody{
+	response, err := internalSCIMSDKGroupsCreate(ctx, scimsdk.CreateGroupBody{
 		DisplayName: group.DisplayName,
 		Members:     group.Members,
 	})
@@ -93,8 +87,7 @@ func CreateGroup(ctx context.Context, group source.UserGroup) (*GroupRow, error)
 }
 
 func ReplaceGroupMembers(ctx context.Context, group source.UserGroup) error {
-	client := newSDMSCIMClient()
-	_, err := client.Groups().UpdateReplaceMembers(ctx, group.ID, group.Members)
+	_, err := internalSCIMSDKGroupsUpdateReplaceMembers(ctx, group.ID, group.Members)
 	if err != nil {
 		return err
 	}
@@ -102,10 +95,44 @@ func ReplaceGroupMembers(ctx context.Context, group source.UserGroup) error {
 }
 
 func DeleteGroup(ctx context.Context, groupID string) error {
-	client := newSDMSCIMClient()
-	_, err := client.Groups().Delete(ctx, groupID)
+	_, err := internalSCIMSDKGroupsDelete(ctx, groupID)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func internalSCIMSDKGroupsList(ctx context.Context, paginationOpts *scimsdk.PaginationOptions) scimsdk.GroupIterator {
+	client := newSDMSCIMClient()
+	return client.Groups().List(ctx, paginationOpts)
+}
+
+func internalSCIMSDKUsersList(ctx context.Context, paginationOpts *scimsdk.PaginationOptions) scimsdk.UserIterator {
+	client := newSDMSCIMClient()
+	return client.Users().List(ctx, paginationOpts)
+}
+
+func internalSCIMSDKUsersCreate(ctx context.Context, user scimsdk.CreateUser) (*scimsdk.User, error) {
+	client := newSDMSCIMClient()
+	return client.Users().Create(ctx, user)
+}
+
+func internalSCIMSDKUsersDelete(ctx context.Context, userID string) (bool, error) {
+	client := newSDMSCIMClient()
+	return client.Users().Delete(ctx, userID)
+}
+
+func internalSCIMSDKGroupsCreate(ctx context.Context, group scimsdk.CreateGroupBody) (*scimsdk.Group, error) {
+	client := newSDMSCIMClient()
+	return client.Groups().Create(ctx, group)
+}
+
+func internalSCIMSDKGroupsUpdateReplaceMembers(ctx context.Context, groupID string, members []scimsdk.GroupMember) (bool, error) {
+	client := newSDMSCIMClient()
+	return client.Groups().UpdateReplaceMembers(ctx, groupID, members)
+}
+
+func internalSCIMSDKGroupsDelete(ctx context.Context, groupID string) (bool, error) {
+	client := newSDMSCIMClient()
+	return client.Groups().Delete(ctx, groupID)
 }

@@ -1,12 +1,10 @@
 package sdmscim
 
 import (
-	"errors"
-
 	"github.com/strongdm/scimsdk/scimsdk"
 )
 
-func usersWithGroupsToSink(iterator *scimsdk.UsersIterator, userGroups map[string][]GroupRow) ([]UserRow, error) {
+func usersWithGroupsToSink(iterator scimsdk.UserIterator, userGroups map[string][]GroupRow) ([]UserRow, error) {
 	var result []UserRow
 	for iterator.Next() {
 		user := iterator.Value()
@@ -15,8 +13,8 @@ func usersWithGroupsToSink(iterator *scimsdk.UsersIterator, userGroups map[strin
 			Groups: userGroups[user.ID],
 		})
 	}
-	if iterator.Err() != "" {
-		return nil, errors.New(iterator.Err())
+	if iterator.Err() != nil {
+		return nil, iterator.Err()
 	}
 	return result, nil
 }

@@ -289,10 +289,8 @@ github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1 h1:5TQK59W5E3v0r2duFAb7P95B6hEeOyEnHRa8MjYSMTY=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/strongdm/scimsdk v1.0.8 h1:7b0cDWbh27mZuCpx92M1wTrNjxiPmLkSZt3iBAg5YR0=
-github.com/strongdm/scimsdk v1.0.8/go.mod h1:q0kr7+9tS5/CmN7wZJmIx75sc4OazcExfsYFaj2nS+Y=
-github.com/strongdm/strongdm-sdk-go v0.9.40 h1:fP2zpu3Lugqy2JNtTWHcqA4sK/7Ux1odE6H27LpecDs=
-github.com/strongdm/strongdm-sdk-go v0.9.40/go.mod h1:3a7c9cX23cXroD8u0Mmc+kwCO9opPVhNqIFbjhhvLxc=
+github.com/strongdm/scimsdk v1.0.9 h1:NtpViK/k4aiGXhXY+TpBjmZ10d1pqkRUSXGKDSYdL8I=
+github.com/strongdm/scimsdk v1.0.9/go.mod h1:q0kr7+9tS5/CmN7wZJmIx75sc4OazcExfsYFaj2nS+Y=
 github.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLYF3GoBXY=
