@@ -17,18 +17,15 @@ func NewUserSynchronizer(report *Report) *UserSynchronizer {
 	}
 }
 
-func (sync *UserSynchronizer) Sync(ctx context.Context) error {
-	err := sync.createUsers(ctx, sync.report.IdPUsersToAdd)
-	if err != nil {
-		return err
-	}
+func (sync *UserSynchronizer) Sync(ctx context.Context) []error {
+	errs := sync.createUsers(ctx, sync.report.IdPUsersToAdd)
+	updateErrs := sync.updateUsers(ctx, sync.report.IdPUsersToUpdate)
+	errs = append(errs, updateErrs...)
 	if *flags.DeleteUsersNotInIdPFlag {
-		err = sync.DeleteDisjointedSDMUsers(ctx, sync.report.SDMUsersNotInIdP)
-		if err != nil {
-			return err
-		}
+		deleteErrs := sync.DeleteDisjointedSDMUsers(ctx, sync.report.SDMUsersNotInIdP)
+		errs = append(errs, deleteErrs...)
 	}
-	return nil
+	return errs
 }
 
 func (sync *UserSynchronizer) EnrichReport() error {
@@ -36,33 +33,43 @@ func (sync *UserSynchronizer) EnrichReport() error {
 	if err != nil {
 		return err
 	}
-	var existentUsers []source.User
-	var newUsers []source.User
-	for _, idpUser := range sync.report.IdPUsers {
+	newUsers, usersNotInIdP, existentUsers, usersWithUpdatedData := removeSDMUsersIntersection(sdmUsers, sync.report.IdPUsers)
+	sync.report.IdPUsersToAdd = newUsers
+	sync.report.IdPUsersInSDM = existentUsers
+	sync.report.SDMUsersNotInIdP = usersNotInIdP
+	sync.report.IdPUsersToUpdate = usersWithUpdatedData
+	return nil
+}
+
+func removeSDMUsersIntersection(sdmUsers []*sdmscim.UserRow, idpUsers []*source.User) ([]*source.User, []*sdmscim.UserRow, []*source.User, []*source.User) {
+	var newUsers []*source.User
+	var disjointedUsers []*sdmscim.UserRow
+	var existentUsers []*source.User
+	var usersWithUpdatedData []*source.User
+	var mappedUsers map[string]bool = map[string]bool{}
+	for idpUserIdx, idpUser := range idpUsers {
 		var found bool
-		for _, user := range sdmUsers {
-			if idpUser.UserName == user.UserName {
+		var needUpdate bool
+		var sinkObjectID string
+		for _, sdmUser := range sdmUsers {
+			if idpUser.UserName == sdmUser.UserName {
 				found = true
+				needUpdate = userHasOutdatedData(*sdmUser, *idpUser)
+				sinkObjectID = sdmUser.ID
 				break
 			}
 		}
 		if !found {
 			newUsers = append(newUsers, idpUser)
 		} else {
-			existentUsers = append(existentUsers, idpUser)
+			idpUsers[idpUserIdx].SinkObjectID = sinkObjectID
+			if needUpdate {
+				usersWithUpdatedData = append(usersWithUpdatedData, idpUsers[idpUserIdx])
+			}
+			existentUsers = append(existentUsers, idpUsers[idpUserIdx])
 		}
 	}
-	usersNotInIdP := removeSDMUsersIntersection(sdmUsers, sync.report.IdPUsers)
-	sync.report.IdPUsersToAdd = newUsers
-	sync.report.IdPUsersInSDM = existentUsers
-	sync.report.SDMUsersNotInIdP = usersNotInIdP
-	return nil
-}
-
-func removeSDMUsersIntersection(sdmUsers []sdmscim.UserRow, existentIdPUsers []source.User) []sdmscim.UserRow {
-	var disjointedUsers []sdmscim.UserRow
-	mappedUsers := map[string]bool{}
-	for _, user := range existentIdPUsers {
+	for _, user := range idpUsers {
 		mappedUsers[user.UserName] = true
 	}
 	for _, user := range sdmUsers {
@@ -70,25 +77,45 @@ func removeSDMUsersIntersection(sdmUsers []sdmscim.UserRow, existentIdPUsers []s
 			disjointedUsers = append(disjointedUsers, user)
 		}
 	}
-	return disjointedUsers
+	return newUsers, disjointedUsers, existentUsers, usersWithUpdatedData
 }
 
-func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []source.User) error {
+func (sync *UserSynchronizer) createUsers(ctx context.Context, idpUsers []*source.User) []error {
+	errs := []error{}
 	for _, idpUser := range idpUsers {
 		_, err := sdmscim.CreateUser(ctx, idpUser)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
-func (sync *UserSynchronizer) DeleteDisjointedSDMUsers(ctx context.Context, users []sdmscim.UserRow) error {
-	for _, user := range users {
-		err := sdmscim.DeleteUser(ctx, user.ID)
+func (sync *UserSynchronizer) updateUsers(ctx context.Context, idpUsers []*source.User) []error {
+	errs := []error{}
+	for _, idpUser := range idpUsers {
+		err := sdmscim.ReplaceUser(ctx, *idpUser)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errs
+}
+
+func (sync *UserSynchronizer) DeleteDisjointedSDMUsers(ctx context.Context, users []*sdmscim.UserRow) []error {
+	errs := []error{}
+	for _, user := range users {
+		err := sdmscim.DeleteUser(ctx, *user)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+func userHasOutdatedData(sdmUser sdmscim.UserRow, idpUser source.User) bool {
+	if idpUser.Active != sdmUser.Active || idpUser.FamilyName != sdmUser.Name.FamilyName || idpUser.GivenName != sdmUser.Name.GivenName {
+		return true
+	}
+	return false
 }

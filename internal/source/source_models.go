@@ -3,16 +3,17 @@ package source
 import "github.com/strongdm/scimsdk/scimsdk"
 
 type User struct {
-	ID         string
-	UserName   string
-	GivenName  string
-	FamilyName string
-	Active     bool
-	Groups     []string
+	ID           string
+	UserName     string
+	GivenName    string
+	FamilyName   string
+	Active       bool
+	Groups       []string
+	SinkObjectID string
 }
 
 type UserGroup struct {
-	ID          string
-	DisplayName string
-	Members     []scimsdk.GroupMember
+	DisplayName  string
+	Members      []scimsdk.GroupMember
+	SinkObjectID string
 }

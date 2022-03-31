@@ -12,16 +12,31 @@ type Report struct {
 	Start    time.Time
 	Complete time.Time
 
-	IdPUsers      []source.User
-	IdPUsersToAdd []source.User
-	IdPUsersInSDM []source.User
+	IdPUsers         []*source.User
+	IdPUsersToAdd    []*source.User
+	IdPUsersInSDM    []*source.User
+	IdPUsersToUpdate []*source.User
 
-	IdPUserGroups      []source.UserGroup
-	IdPUserGroupsToAdd []source.UserGroup
-	IdPUserGroupsInSDM []source.UserGroup
+	IdPUserGroups      []*source.UserGroup
+	IdPUserGroupsToAdd []*source.UserGroup
+	IdPUserGroupsInSDM []*source.UserGroup
 
-	SDMUsersNotInIdP  []sdmscim.UserRow
-	SDMGroupsNotInIdP []sdmscim.GroupRow
+	SDMUsersNotInIdP  []*sdmscim.UserRow
+	SDMGroupsNotInIdP []*sdmscim.GroupRow
+}
+
+func newReport() *Report {
+	return &Report{
+		IdPUsers:           []*source.User{},
+		IdPUsersToAdd:      []*source.User{},
+		IdPUsersInSDM:      []*source.User{},
+		IdPUsersToUpdate:   []*source.User{},
+		IdPUserGroups:      []*source.UserGroup{},
+		IdPUserGroupsToAdd: []*source.UserGroup{},
+		IdPUserGroupsInSDM: []*source.UserGroup{},
+		SDMUsersNotInIdP:   []*sdmscim.UserRow{},
+		SDMGroupsNotInIdP:  []*sdmscim.GroupRow{},
+	}
 }
 
 func (rpt *Report) String() string {

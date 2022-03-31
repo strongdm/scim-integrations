@@ -2,7 +2,6 @@ package synchronizer
 
 import (
 	"context"
-	"errors"
 	"log"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/source"
@@ -16,7 +15,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer() *Synchronizer {
-	report := &Report{}
+	report := newReport()
 	return &Synchronizer{
 		report:            report,
 		userSynchronizer:  NewUserSynchronizer(report),
@@ -24,21 +23,21 @@ func NewSynchronizer() *Synchronizer {
 	}
 }
 
-func (s *Synchronizer) Run(src source.BaseSource) error {
+func (s *Synchronizer) Run(src source.BaseSource) {
 	err := s.fillReport(src)
 	if err != nil {
-		return err
+		log.Println("An error occurred filling the report data: ", err)
 	}
-	err = s.performSync()
-	if err != nil {
-		return err
-	}
+	errs := s.performSync()
 	log.Printf("%d SDM users in IdP", len(s.report.IdPUsersInSDM))
 	log.Printf("%d SDM users not in IdP", len(s.report.SDMUsersNotInIdP))
+	log.Printf("%d SDM users to be updated", len(s.report.IdPUsersToUpdate))
 	log.Printf("%d SDM groups in IdP", len(s.report.IdPUserGroupsInSDM))
 	log.Printf("%d SDM groups not in IdP", len(s.report.SDMGroupsNotInIdP))
 	log.Println(s.report.String())
-	return nil
+	for _, err := range errs {
+		log.Println(err)
+	}
 }
 
 func (s *Synchronizer) fillReport(src source.BaseSource) error {
@@ -61,18 +60,20 @@ func (s *Synchronizer) fillReport(src source.BaseSource) error {
 	return nil
 }
 
-func (s *Synchronizer) performSync() error {
+func (s *Synchronizer) performSync() []error {
+	errs := []error{}
 	if !*flags.PlanFlag {
 		log.Print("Synchronizing users and groups")
-		err := s.userSynchronizer.Sync(context.Background())
+		userErrs := s.userSynchronizer.Sync(context.Background())
+		errs = append(errs, userErrs...)
+		err := s.groupSynchronizer.EnrichReport()
 		if err != nil {
-			return errors.New("error synchronizing users: " + err.Error())
+			errs = append(errs, err)
+			return errs
 		}
-		err = s.groupSynchronizer.Sync(context.Background())
-		if err != nil {
-			return errors.New("error synchronizing groups: " + err.Error())
-		}
+		groupErrs := s.groupSynchronizer.Sync(context.Background())
+		errs = append(errs, groupErrs...)
 	}
 	s.report.Complete = time.Now()
-	return nil
+	return errs
 }

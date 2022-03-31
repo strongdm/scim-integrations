@@ -4,14 +4,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/source"
 	"scim-integrations/internal/synchronizer"
 )
 
-// TODO: Add tests
 func main() {
 	flag.Parse()
 	err := flags.ValidateMandatoryFlags()
@@ -23,20 +21,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "An error occurred setting up the environment: "+err.Error())
 		os.Exit(-1)
 	}
-	src := source.ByFlag(getFlagName())
+	src := source.ByFlag(*flags.IdPFlag)
 	snc := synchronizer.NewSynchronizer()
-	err = snc.Run(src)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "An error occurred running Source sync: %s", err.Error())
-	}
-	log.Println("Source sync ran successfully")
-}
-
-func getFlagName() string {
-	if *flags.GoogleFlag {
-		return "google"
-	}
-	return ""
+	snc.Run(src)
 }
 
 func validateEnvironment() error {

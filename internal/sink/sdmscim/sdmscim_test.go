@@ -1,14 +1,15 @@
 package sdmscim
 
 import (
-	"bou.ke/monkey"
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/strongdm/scimsdk/scimsdk"
 	"scim-integrations/internal/source"
 	"testing"
 	"time"
+
+	"bou.ke/monkey"
+	"github.com/stretchr/testify/assert"
+	"github.com/strongdm/scimsdk/scimsdk"
 )
 
 func TestSDMSCIMFetchUsers(t *testing.T) {
@@ -133,7 +134,7 @@ func TestSDMSCIMCreateUser(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKUsersCreate, mockedSCIMSDKUserCreate)
 
-		response, err := CreateUser(context.Background(), source.User{})
+		response, err := CreateUser(context.Background(), &source.User{})
 
 		assert.NotNil(t, response)
 		assert.Nil(t, err)
@@ -145,7 +146,7 @@ func TestSDMSCIMCreateUser(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateUser(timeoutContext, source.User{})
+		response, err := CreateUser(timeoutContext, &source.User{})
 
 		assert.NotNil(t, response)
 		assert.Nil(t, err)
@@ -158,7 +159,7 @@ func TestSDMSCIMCreateUser(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateUser(timeoutContext, source.User{})
+		response, err := CreateUser(timeoutContext, &source.User{})
 
 		assert.Nil(t, response)
 		assert.NotNil(t, err)
@@ -173,7 +174,12 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKUsersDelete, mockedSCIMSDKUserDelete)
 
-		err := DeleteUser(context.Background(), "xxx")
+		err := DeleteUser(context.Background(), UserRow{
+			User: &scimsdk.User{
+				ID:       "xxx",
+				UserName: "sdm@test.com",
+			},
+		})
 
 		assert.Nil(t, err)
 	})
@@ -184,7 +190,12 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteUser(timeoutContext, "xxx")
+		err := DeleteUser(timeoutContext, UserRow{
+			User: &scimsdk.User{
+				ID:       "xxx",
+				UserName: "sdm@test.com",
+			},
+		})
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
@@ -196,7 +207,12 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteUser(timeoutContext, "xxx")
+		err := DeleteUser(timeoutContext, UserRow{
+			User: &scimsdk.User{
+				ID:       "xxx",
+				UserName: "sdm@test.com",
+			},
+		})
 
 		assert.NotNil(t, err)
 		assert.NotNil(t, timeoutContext.Err())
@@ -273,7 +289,7 @@ func TestSDMSCIMCreateGroup(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKGroupsCreate, mockedSCIMSDKGroupCreate)
 
-		response, err := CreateGroup(context.Background(), source.UserGroup{})
+		response, err := CreateGroup(context.Background(), &source.UserGroup{})
 
 		assert.NotNil(t, response)
 		assert.Nil(t, err)
@@ -285,7 +301,7 @@ func TestSDMSCIMCreateGroup(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateGroup(timeoutContext, source.UserGroup{})
+		response, err := CreateGroup(timeoutContext, &source.UserGroup{})
 
 		assert.Empty(t, response)
 		assert.Nil(t, err)
@@ -298,7 +314,7 @@ func TestSDMSCIMCreateGroup(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateGroup(timeoutContext, source.UserGroup{})
+		response, err := CreateGroup(timeoutContext, &source.UserGroup{})
 
 		assert.Nil(t, response)
 		assert.NotNil(t, err)
@@ -313,7 +329,7 @@ func TestSDMSCIMUpdateReplaceMembers(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKGroupsUpdateReplaceMembers, mockedSCIMSDKGroupUpdateReplaceMembers)
 
-		err := ReplaceGroupMembers(context.Background(), source.UserGroup{})
+		err := ReplaceGroupMembers(context.Background(), &source.UserGroup{})
 
 		assert.Nil(t, err)
 	})
@@ -324,7 +340,7 @@ func TestSDMSCIMUpdateReplaceMembers(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := ReplaceGroupMembers(timeoutContext, source.UserGroup{})
+		err := ReplaceGroupMembers(timeoutContext, &source.UserGroup{})
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
@@ -336,7 +352,7 @@ func TestSDMSCIMUpdateReplaceMembers(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := ReplaceGroupMembers(timeoutContext, source.UserGroup{})
+		err := ReplaceGroupMembers(timeoutContext, &source.UserGroup{})
 
 		assert.NotNil(t, err)
 		assert.NotNil(t, timeoutContext.Err())
@@ -350,7 +366,7 @@ func TestSDMSCIMDeleteGroup(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKGroupsDelete, mockedSCIMSDKGroupDelete)
 
-		err := DeleteGroup(context.Background(), "xxx")
+		err := DeleteGroup(context.Background(), &GroupRow{"xxx", "yyy", []GroupMember{}})
 
 		assert.Nil(t, err)
 	})
@@ -361,7 +377,7 @@ func TestSDMSCIMDeleteGroup(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteGroup(timeoutContext, "xxx")
+		err := DeleteGroup(timeoutContext, &GroupRow{"xxx", "yyy", []GroupMember{}})
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
@@ -373,7 +389,7 @@ func TestSDMSCIMDeleteGroup(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteGroup(timeoutContext, "xxx")
+		err := DeleteGroup(timeoutContext, &GroupRow{"xxx", "yyy", []GroupMember{}})
 
 		assert.NotNil(t, err)
 		assert.NotNil(t, timeoutContext.Err())

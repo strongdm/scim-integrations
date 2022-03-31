@@ -28,7 +28,7 @@ func NewGoogleSource() *GoogleSource {
 	return &GoogleSource{}
 }
 
-func (g *GoogleSource) FetchUsers(ctx context.Context) ([]User, error) {
+func (g *GoogleSource) FetchUsers(ctx context.Context) ([]*User, error) {
 	client, err := prepareGoogleHTTPClient()
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (g *GoogleSource) FetchUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	var nextPageToken string
-	var users []User
+	var users []*User
 	for {
 		response, err := internalGoogleFetchUsers(svc, nextPageToken)
 		if err != nil {
@@ -53,8 +53,8 @@ func (g *GoogleSource) FetchUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (*GoogleSource) ExtractGroupsFromUsers(users []User) []UserGroup {
-	var groups []UserGroup
+func (*GoogleSource) ExtractGroupsFromUsers(users []*User) []*UserGroup {
+	var groups []*UserGroup
 	mappedGroupMembers := map[string][]scimsdk.GroupMember{}
 	for _, user := range users {
 		for _, userGroup := range user.Groups {
@@ -74,7 +74,7 @@ func (*GoogleSource) ExtractGroupsFromUsers(users []User) []UserGroup {
 		}
 	}
 	for groupName, members := range mappedGroupMembers {
-		groups = append(groups, UserGroup{DisplayName: groupName, Members: members})
+		groups = append(groups, &UserGroup{DisplayName: groupName, Members: members})
 	}
 	return groups
 }
@@ -83,14 +83,15 @@ func internalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*ad
 	return service.Users.List().Query(*flags.QueryFlag).Customer(DefaultGoogleCustomer).PageToken(nextPageToken).MaxResults(FetchPageSize).Do()
 }
 
-func googleUsersToSCIMUser(googleUsers []*admin.User) []User {
-	var users []User
+func googleUsersToSCIMUser(googleUsers []*admin.User) []*User {
+	var users []*User
 	for _, googleUser := range googleUsers {
-		users = append(users, User{
+		users = append(users, &User{
 			ID:         googleUser.Id,
 			UserName:   googleUser.PrimaryEmail,
 			GivenName:  googleUser.Name.GivenName,
 			FamilyName: googleUser.Name.FamilyName,
+			Active:     !googleUser.Suspended,
 			Groups:     getGroups(googleUser.OrgUnitPath),
 		})
 	}

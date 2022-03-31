@@ -4,7 +4,7 @@ import "github.com/strongdm/scimsdk/scimsdk"
 
 type UserRow struct {
 	*scimsdk.User
-	Groups []GroupRow
+	Groups []*GroupRow
 }
 
 type GroupRow struct {

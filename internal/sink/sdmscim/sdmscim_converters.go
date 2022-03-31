@@ -1,20 +1,23 @@
 package sdmscim
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/strongdm/scimsdk/scimsdk"
 )
 
-func usersWithGroupsToSink(iterator scimsdk.UserIterator, userGroups map[string][]GroupRow) ([]UserRow, error) {
-	var result []UserRow
+func usersWithGroupsToSink(iterator scimsdk.UserIterator, userGroups map[string][]*GroupRow) ([]*UserRow, error) {
+	var result []*UserRow
 	for iterator.Next() {
 		user := iterator.Value()
-		result = append(result, UserRow{
+		result = append(result, &UserRow{
 			User:   user,
 			Groups: userGroups[user.ID],
 		})
 	}
 	if iterator.Err() != nil {
-		return nil, iterator.Err()
+		return nil, errors.New(fmt.Sprintf("An error was occurred listing the SDM users: %v\n", iterator.Err()))
 	}
 	return result, nil
 }

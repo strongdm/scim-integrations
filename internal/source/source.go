@@ -7,8 +7,8 @@ import (
 const FetchPageSize = 500
 
 type BaseSource interface {
-	FetchUsers(ctx context.Context) ([]User, error)
-	ExtractGroupsFromUsers([]User) []UserGroup
+	FetchUsers(ctx context.Context) ([]*User, error)
+	ExtractGroupsFromUsers([]*User) []*UserGroup
 }
 
 func ByFlag(name string) BaseSource {
