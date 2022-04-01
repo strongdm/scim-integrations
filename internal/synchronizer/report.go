@@ -3,7 +3,7 @@ package synchronizer
 import (
 	"encoding/json"
 	"fmt"
-	"scim-integrations/internal/sink/sdmscim"
+	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"time"
 )
@@ -14,28 +14,32 @@ type Report struct {
 
 	IdPUsers         []*source.User
 	IdPUsersToAdd    []*source.User
-	IdPUsersInSDM    []*source.User
+	IdPUsersInSink   []*source.User
 	IdPUsersToUpdate []*source.User
 
-	IdPUserGroups      []*source.UserGroup
-	IdPUserGroupsToAdd []*source.UserGroup
-	IdPUserGroupsInSDM []*source.UserGroup
+	IdPUserGroups       []*source.UserGroup
+	IdPUserGroupsToAdd  []*source.UserGroup
+	IdPUserGroupsInSink []*source.UserGroup
 
-	SDMUsersNotInIdP  []*sdmscim.UserRow
-	SDMGroupsNotInIdP []*sdmscim.GroupRow
+	SinkUsers          []*sink.UserRow
+	SinkGroups         []*sink.GroupRow
+	SinkUsersNotInIdP  []*sink.UserRow
+	SinkGroupsNotInIdP []*sink.GroupRow
 }
 
 func newReport() *Report {
 	return &Report{
-		IdPUsers:           []*source.User{},
-		IdPUsersToAdd:      []*source.User{},
-		IdPUsersInSDM:      []*source.User{},
-		IdPUsersToUpdate:   []*source.User{},
-		IdPUserGroups:      []*source.UserGroup{},
-		IdPUserGroupsToAdd: []*source.UserGroup{},
-		IdPUserGroupsInSDM: []*source.UserGroup{},
-		SDMUsersNotInIdP:   []*sdmscim.UserRow{},
-		SDMGroupsNotInIdP:  []*sdmscim.GroupRow{},
+		IdPUsers:            []*source.User{},
+		IdPUsersToAdd:       []*source.User{},
+		IdPUsersInSink:      []*source.User{},
+		IdPUsersToUpdate:    []*source.User{},
+		IdPUserGroups:       []*source.UserGroup{},
+		IdPUserGroupsToAdd:  []*source.UserGroup{},
+		IdPUserGroupsInSink: []*source.UserGroup{},
+		SinkUsers:           []*sink.UserRow{},
+		SinkGroups:          []*sink.GroupRow{},
+		SinkUsersNotInIdP:   []*sink.UserRow{},
+		SinkGroupsNotInIdP:  []*sink.GroupRow{},
 	}
 }
 
@@ -49,5 +53,5 @@ func (rpt *Report) String() string {
 
 func (rpt *Report) short() string {
 	return fmt.Sprintf("%d IdP users, %d strongDM users in IdP, %d strongDM groups in IdP\n",
-		len(rpt.IdPUsers), len(rpt.IdPUsersInSDM), len(rpt.IdPUserGroupsInSDM))
+		len(rpt.IdPUsers), len(rpt.IdPUsersInSink), len(rpt.IdPUserGroupsInSink))
 }

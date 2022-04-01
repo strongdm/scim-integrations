@@ -3,6 +3,7 @@ package sdmscim
 import (
 	"context"
 	"errors"
+	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"testing"
 	"time"
@@ -31,25 +32,23 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 
 		assertT := assert.New(t)
 
-		users, err := FetchUsers(context.Background())
+		rows, err := FetchUsers(context.Background())
 
-		assertT.NotNil(users)
+		assertT.NotNil(rows)
 		assertT.Nil(err)
 
-		user := users[0]
+		row := rows[0]
 
-		assertT.NotNil(user)
-		assertT.True(user.Active)
-		assertT.NotEmpty(user.ID)
-		assertT.NotEmpty(user.UserName)
-		assertT.NotEmpty(user.UserType)
-		assertT.NotEmpty(user.DisplayName)
-		assertT.NotEmpty(user.Name.GivenName)
-		assertT.NotEmpty(user.Name.FamilyName)
-		assertT.NotEmpty(user.Name.Formatted)
-		assertT.NotNil(user.Groups)
+		assertT.NotNil(row)
+		assertT.True(row.User.Active)
+		assertT.NotEmpty(row.User.ID)
+		assertT.NotEmpty(row.User.UserName)
+		assertT.NotEmpty(row.User.DisplayName)
+		assertT.NotEmpty(row.User.GivenName)
+		assertT.NotEmpty(row.User.FamilyName)
+		assertT.NotNil(row.Groups)
 
-		group := user.Groups[0]
+		group := row.Groups[0]
 
 		assertT.NotEmpty(group.ID)
 		assertT.NotEmpty(group.DisplayName)
@@ -63,23 +62,21 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 
 		assertT := assert.New(t)
 
-		users, err := FetchUsers(context.Background())
+		rows, err := FetchUsers(context.Background())
 
-		assertT.NotNil(users)
+		assertT.NotNil(rows)
 		assertT.Nil(err)
 
-		user := users[0]
+		row := rows[0]
 
-		assertT.NotNil(user)
-		assertT.True(user.Active)
-		assertT.NotEmpty(user.ID)
-		assertT.NotEmpty(user.UserName)
-		assertT.NotEmpty(user.UserType)
-		assertT.NotEmpty(user.DisplayName)
-		assertT.NotEmpty(user.Name.GivenName)
-		assertT.NotEmpty(user.Name.FamilyName)
-		assertT.NotEmpty(user.Name.Formatted)
-		assertT.Empty(user.Groups)
+		assertT.NotNil(row)
+		assertT.True(row.User.Active)
+		assertT.NotEmpty(row.User.ID)
+		assertT.NotEmpty(row.User.UserName)
+		assertT.NotEmpty(row.User.DisplayName)
+		assertT.NotEmpty(row.User.GivenName)
+		assertT.NotEmpty(row.User.FamilyName)
+		assertT.Empty(row.Groups)
 	})
 
 	t.Run("should return a empty list of users when using a context with timeout", func(t *testing.T) {
@@ -174,12 +171,7 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKUsersDelete, mockedSCIMSDKUserDelete)
 
-		err := DeleteUser(context.Background(), UserRow{
-			User: &scimsdk.User{
-				ID:       "xxx",
-				UserName: "sdm@test.com",
-			},
-		})
+		err := DeleteUser(context.Background(), *getMockUserRow())
 
 		assert.Nil(t, err)
 	})
@@ -190,12 +182,7 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteUser(timeoutContext, UserRow{
-			User: &scimsdk.User{
-				ID:       "xxx",
-				UserName: "sdm@test.com",
-			},
-		})
+		err := DeleteUser(timeoutContext, *getMockUserRow())
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
@@ -207,12 +194,7 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteUser(timeoutContext, UserRow{
-			User: &scimsdk.User{
-				ID:       "xxx",
-				UserName: "sdm@test.com",
-			},
-		})
+		err := DeleteUser(timeoutContext, *getMockUserRow())
 
 		assert.NotNil(t, err)
 		assert.NotNil(t, timeoutContext.Err())
@@ -366,7 +348,7 @@ func TestSDMSCIMDeleteGroup(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKGroupsDelete, mockedSCIMSDKGroupDelete)
 
-		err := DeleteGroup(context.Background(), &GroupRow{"xxx", "yyy", []GroupMember{}})
+		err := DeleteGroup(context.Background(), getMockGroupRow())
 
 		assert.Nil(t, err)
 	})
@@ -377,7 +359,7 @@ func TestSDMSCIMDeleteGroup(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteGroup(timeoutContext, &GroupRow{"xxx", "yyy", []GroupMember{}})
+		err := DeleteGroup(timeoutContext, getMockGroupRow())
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
@@ -389,7 +371,7 @@ func TestSDMSCIMDeleteGroup(t *testing.T) {
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteGroup(timeoutContext, &GroupRow{"xxx", "yyy", []GroupMember{}})
+		err := DeleteGroup(timeoutContext, getMockGroupRow())
 
 		assert.NotNil(t, err)
 		assert.NotNil(t, timeoutContext.Err())
@@ -404,7 +386,9 @@ func mockedSCIMSDKUserListCTXTimeoutExceeded(_ context.Context, _ *scimsdk.Pagin
 }
 
 func mockedSCIMSDKUserCreate(_ context.Context, _ scimsdk.CreateUser) (*scimsdk.User, error) {
-	return &scimsdk.User{}, nil
+	return &scimsdk.User{
+		Name: &scimsdk.UserName{},
+	}, nil
 }
 
 func mockedSCIMSDKUserCreateCTXTimeoutExceeded(_ context.Context, _ scimsdk.CreateUser) (*scimsdk.User, error) {
@@ -528,5 +512,22 @@ func getMockSCIMSDKGroup() *scimsdk.Group {
 			ResourceType: "www",
 			Location:     "zzz",
 		},
+	}
+}
+
+func getMockUserRow() *sink.UserRow {
+	return &sink.UserRow{
+		User: &sink.User{
+			ID:       "xxx",
+			UserName: "sdm@test.com",
+		},
+	}
+}
+
+func getMockGroupRow() *sink.GroupRow {
+	return &sink.GroupRow{
+		ID:          "xxx",
+		DisplayName: "yyy",
+		Members:     []*sink.GroupMember{},
 	}
 }

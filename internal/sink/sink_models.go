@@ -1,16 +1,23 @@
-package sdmscim
+package sink
 
-import "github.com/strongdm/scimsdk/scimsdk"
+type User struct {
+	ID          string
+	UserName    string
+	DisplayName string
+	GivenName   string
+	FamilyName  string
+	Active      bool
+}
 
 type UserRow struct {
-	*scimsdk.User
+	User   *User
 	Groups []*GroupRow
 }
 
 type GroupRow struct {
 	ID          string
 	DisplayName string
-	Members     []GroupMember
+	Members     []*GroupMember
 }
 
 type GroupMember struct {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 
 	"github.com/strongdm/scimsdk/scimsdk"
@@ -15,7 +16,7 @@ func newSDMSCIMClient() *scimsdk.Client {
 	return client
 }
 
-func FetchUsers(ctx context.Context) ([]*UserRow, error) {
+func FetchUsers(ctx context.Context) ([]*sink.UserRow, error) {
 	groups, err := FetchGroups(ctx)
 	if err != nil {
 		return nil, err
@@ -29,12 +30,12 @@ func FetchUsers(ctx context.Context) ([]*UserRow, error) {
 	return users, nil
 }
 
-func separateGroupsByUser(groups []*GroupRow) map[string][]*GroupRow {
-	userGroups := map[string][]*GroupRow{}
+func separateGroupsByUser(groups []*sink.GroupRow) map[string][]*sink.GroupRow {
+	userGroups := map[string][]*sink.GroupRow{}
 	for _, group := range groups {
 		for _, member := range group.Members {
 			if userGroups[member.ID] == nil {
-				userGroups[member.ID] = []*GroupRow{group}
+				userGroups[member.ID] = []*sink.GroupRow{group}
 			} else {
 				userGroups[member.ID] = append(userGroups[member.ID], group)
 			}
@@ -43,7 +44,7 @@ func separateGroupsByUser(groups []*GroupRow) map[string][]*GroupRow {
 	return userGroups
 }
 
-func CreateUser(ctx context.Context, user *source.User) (*UserRow, error) {
+func CreateUser(ctx context.Context, user *source.User) (*sink.UserRow, error) {
 	response, err := internalSCIMSDKUsersCreate(ctx, scimsdk.CreateUser{
 		UserName:   user.UserName,
 		GivenName:  user.GivenName,
@@ -54,7 +55,7 @@ func CreateUser(ctx context.Context, user *source.User) (*UserRow, error) {
 		return nil, errors.New(fmt.Sprintf("An error was occurred creating the user \"%s\": %v", user.UserName, err))
 	}
 	user.SinkObjectID = response.ID
-	return userToSink(response), nil
+	return userToSink(response, nil), nil
 }
 
 func ReplaceUser(ctx context.Context, user source.User) error {
@@ -65,17 +66,17 @@ func ReplaceUser(ctx context.Context, user source.User) error {
 	return nil
 }
 
-func DeleteUser(ctx context.Context, user UserRow) error {
-	_, err := internalSCIMSDKUsersDelete(ctx, user.ID)
+func DeleteUser(ctx context.Context, row sink.UserRow) error {
+	_, err := internalSCIMSDKUsersDelete(ctx, row.User.ID)
 	if err != nil {
-		return errors.New(fmt.Sprintf("An error was occurred deleting the user \"%s\": %v", user.UserName, err))
+		return errors.New(fmt.Sprintf("An error was occurred deleting the user \"%s\": %v", row.User.UserName, err))
 	}
 	return nil
 }
 
-func FetchGroups(ctx context.Context) ([]*GroupRow, error) {
+func FetchGroups(ctx context.Context) ([]*sink.GroupRow, error) {
 	iterator := internalSCIMSDKGroupsList(ctx, nil)
-	var result []*GroupRow
+	var result []*sink.GroupRow
 	for iterator.Next() {
 		group := *iterator.Value()
 		result = append(result, groupToSink(&group))
@@ -86,26 +87,27 @@ func FetchGroups(ctx context.Context) ([]*GroupRow, error) {
 	return result, nil
 }
 
-func CreateGroup(ctx context.Context, group *source.UserGroup) (*GroupRow, error) {
+func CreateGroup(ctx context.Context, group *source.UserGroup) (*sink.GroupRow, error) {
 	response, err := internalSCIMSDKGroupsCreate(ctx, scimsdk.CreateGroupBody{
 		DisplayName: group.DisplayName,
-		Members:     group.Members,
+		Members:     sinkGroupMemberListToSDMSCIM(group.Members),
 	})
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("An error was occurred creating the group \"%s\": %v", group.DisplayName, err))
 	}
+	group.SinkObjectID = response.ID
 	return groupToSink(response), nil
 }
 
 func ReplaceGroupMembers(ctx context.Context, group *source.UserGroup) error {
-	_, err := internalSCIMSDKGroupsUpdateReplaceMembers(ctx, group.SinkObjectID, group.Members)
+	_, err := internalSCIMSDKGroupsUpdateReplaceMembers(ctx, group.SinkObjectID, sinkGroupMemberListToSDMSCIM(group.Members))
 	if err != nil {
 		return errors.New(fmt.Sprintf("An error was occurred replacing the %s group members: %v", group.DisplayName, err))
 	}
 	return nil
 }
 
-func DeleteGroup(ctx context.Context, group *GroupRow) error {
+func DeleteGroup(ctx context.Context, group *sink.GroupRow) error {
 	_, err := internalSCIMSDKGroupsDelete(ctx, group.ID)
 	if err != nil {
 		return errors.New(fmt.Sprintf("An error was occurred deleting the group \"%s\": %v", group.DisplayName, err))

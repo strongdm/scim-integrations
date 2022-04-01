@@ -2,6 +2,8 @@ package synchronizer
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/source"
@@ -23,21 +25,23 @@ func NewSynchronizer() *Synchronizer {
 	}
 }
 
-func (s *Synchronizer) Run(src source.BaseSource) {
+func (s *Synchronizer) Run(src source.BaseSource, errCh chan error) {
 	err := s.fillReport(src)
 	if err != nil {
-		log.Println("An error occurred filling the report data: ", err)
+		errCh <- errors.New(fmt.Sprintf("An error occurred filling the report data: %v", err))
+		close(errCh)
+		return
 	}
-	errs := s.performSync()
-	log.Printf("%d SDM users in IdP", len(s.report.IdPUsersInSDM))
-	log.Printf("%d SDM users not in IdP", len(s.report.SDMUsersNotInIdP))
-	log.Printf("%d SDM users to be updated", len(s.report.IdPUsersToUpdate))
-	log.Printf("%d SDM groups in IdP", len(s.report.IdPUserGroupsInSDM))
-	log.Printf("%d SDM groups not in IdP", len(s.report.SDMGroupsNotInIdP))
+	s.performSync(errCh)
+	log.Printf("%d Sink Users", len(s.report.SinkUsers))
+	log.Printf("%d Sink Groups", len(s.report.SinkGroups))
+	log.Printf("%d Sink Users in IdP", len(s.report.IdPUsersInSink))
+	log.Printf("%d Sink Users not in IdP", len(s.report.SinkUsersNotInIdP))
+	log.Printf("%d Sink Users to be updated", len(s.report.IdPUsersToUpdate))
+	log.Printf("%d Sink Groups in IdP", len(s.report.IdPUserGroupsInSink))
+	log.Printf("%d Sink Groups not in IdP", len(s.report.SinkGroupsNotInIdP))
 	log.Println(s.report.String())
-	for _, err := range errs {
-		log.Println(err)
-	}
+	close(errCh)
 }
 
 func (s *Synchronizer) fillReport(src source.BaseSource) error {
@@ -60,20 +64,11 @@ func (s *Synchronizer) fillReport(src source.BaseSource) error {
 	return nil
 }
 
-func (s *Synchronizer) performSync() []error {
-	errs := []error{}
+func (s *Synchronizer) performSync(errCh chan error) {
 	if !*flags.PlanFlag {
 		log.Print("Synchronizing users and groups")
-		userErrs := s.userSynchronizer.Sync(context.Background())
-		errs = append(errs, userErrs...)
-		err := s.groupSynchronizer.EnrichReport()
-		if err != nil {
-			errs = append(errs, err)
-			return errs
-		}
-		groupErrs := s.groupSynchronizer.Sync(context.Background())
-		errs = append(errs, groupErrs...)
+		s.userSynchronizer.Sync(context.Background(), errCh)
+		s.groupSynchronizer.Sync(context.Background(), errCh)
 	}
 	s.report.Complete = time.Now()
-	return errs
 }

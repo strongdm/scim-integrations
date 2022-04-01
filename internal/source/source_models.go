@@ -1,6 +1,8 @@
 package source
 
-import "github.com/strongdm/scimsdk/scimsdk"
+import (
+	"scim-integrations/internal/sink"
+)
 
 type User struct {
 	ID           string
@@ -14,6 +16,6 @@ type User struct {
 
 type UserGroup struct {
 	DisplayName  string
-	Members      []scimsdk.GroupMember
+	Members      []*sink.GroupMember
 	SinkObjectID string
 }

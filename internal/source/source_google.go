@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"os"
 	"scim-integrations/internal/flags"
+	"scim-integrations/internal/sink"
 	"strings"
 
-	"github.com/strongdm/scimsdk/scimsdk"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
@@ -53,18 +53,18 @@ func (g *GoogleSource) FetchUsers(ctx context.Context) ([]*User, error) {
 
 func (*GoogleSource) ExtractGroupsFromUsers(users []*User) []*UserGroup {
 	var groups []*UserGroup
-	mappedGroupMembers := map[string][]scimsdk.GroupMember{}
+	mappedGroupMembers := map[string][]*sink.GroupMember{}
 	for _, user := range users {
 		for _, userGroup := range user.Groups {
 			if _, ok := mappedGroupMembers[userGroup]; !ok {
-				mappedGroupMembers[userGroup] = []scimsdk.GroupMember{
+				mappedGroupMembers[userGroup] = []*sink.GroupMember{
 					{
 						ID:    user.ID,
 						Email: user.UserName,
 					},
 				}
 			} else {
-				mappedGroupMembers[userGroup] = append(mappedGroupMembers[userGroup], scimsdk.GroupMember{
+				mappedGroupMembers[userGroup] = append(mappedGroupMembers[userGroup], &sink.GroupMember{
 					ID:    user.ID,
 					Email: user.UserName,
 				})
