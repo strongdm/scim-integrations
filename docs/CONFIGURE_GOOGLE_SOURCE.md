@@ -7,6 +7,7 @@ To use Google Directory as a Source, you must perform the following steps:
    1. Download your credentials file and save it in the project root folder
 3. Enable Admin SDK API: https://console.cloud.google.com/apis/api/admin.googleapis.com/overview
 4. Administrate Users and OrgUnits: https://admin.google.com/u/2/ac/users
+5. Execute the script [auth.go](../tools/google/auth.go) to generate the `token.json` file. This file will be used to authenticate in Google Admin SDK
 
 **A user can only be assigned to one OrgUnit at a time**
 
