@@ -54,7 +54,7 @@ func CreateUser(ctx context.Context, user *source.User) (*sink.UserRow, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("An error was occurred creating the user \"%s\": %v", user.UserName, err))
 	}
-	user.SinkObjectID = response.ID
+	user.SDMObjectID = response.ID
 	return userToSink(response, nil), nil
 }
 
@@ -95,12 +95,12 @@ func CreateGroup(ctx context.Context, group *source.UserGroup) (*sink.GroupRow, 
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("An error was occurred creating the group \"%s\": %v", group.DisplayName, err))
 	}
-	group.SinkObjectID = response.ID
+	group.SDMObjectID = response.ID
 	return groupToSink(response), nil
 }
 
 func ReplaceGroupMembers(ctx context.Context, group *source.UserGroup) error {
-	_, err := internalSCIMSDKGroupsUpdateReplaceMembers(ctx, group.SinkObjectID, sinkGroupMemberListToSDMSCIM(group.Members))
+	_, err := internalSCIMSDKGroupsUpdateReplaceMembers(ctx, group.SDMObjectID, sinkGroupMemberListToSDMSCIM(group.Members))
 	if err != nil {
 		return errors.New(fmt.Sprintf("An error was occurred replacing the %s group members: %v", group.DisplayName, err))
 	}
@@ -127,7 +127,7 @@ func internalSCIMSDKUsersCreate(ctx context.Context, user scimsdk.CreateUser) (*
 
 func internalSCIMSDKUsersReplace(ctx context.Context, user source.User) (*scimsdk.User, error) {
 	client := newSDMSCIMClient()
-	return client.Users().Replace(ctx, user.SinkObjectID, scimsdk.ReplaceUser{
+	return client.Users().Replace(ctx, user.SDMObjectID, scimsdk.ReplaceUser{
 		UserName:   user.UserName,
 		GivenName:  user.GivenName,
 		FamilyName: user.FamilyName,

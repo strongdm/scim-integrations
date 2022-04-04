@@ -1,6 +1,6 @@
-# Configure Google Source
+# Configure Google IdP
 
-To use Google Directory as a Source, you must perform the following steps:
+To use Google Directory as an IdP, you must perform the following steps:
 
 1. Enable OAuth Consent: https://console.cloud.google.com/apis/credentials/consent (Internal is OK)
 2. Create credentials for a Desktop App: https://console.cloud.google.com/apis/credentials

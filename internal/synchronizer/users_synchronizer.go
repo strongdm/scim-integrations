@@ -69,7 +69,7 @@ func (sync *UserSynchronizer) removeSDMUsersIntersection() ([]*source.User, []*s
 		if !found {
 			newUsers = append(newUsers, idpUser)
 		} else {
-			idpUsers[idpUserIdx].SinkObjectID = sinkObjectID
+			idpUsers[idpUserIdx].SDMObjectID = sinkObjectID
 			if needUpdate {
 				usersWithUpdatedData = append(usersWithUpdatedData, idpUsers[idpUserIdx])
 			}

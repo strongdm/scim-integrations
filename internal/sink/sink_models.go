@@ -21,8 +21,9 @@ type GroupRow struct {
 }
 
 type GroupMember struct {
-	ID    string
-	Email string
+	ID          string
+	Email       string
+	SDMObjectID string
 }
 
 type ISinkClient interface {

@@ -74,10 +74,10 @@ func (sync *GroupSynchronizer) removeSDMGroupsIntersection() ([]*source.UserGrou
 			}
 		}
 		sync.enrichGroupMembers()
+		idpGroup.SDMObjectID = sinkObjectID
 		if !found {
 			newGroups = append(newGroups, idpGroup)
 		} else {
-			idpGroup.SinkObjectID = sinkObjectID
 			existentGroups = append(existentGroups, idpGroup)
 		}
 	}
@@ -93,7 +93,7 @@ func (sync *GroupSynchronizer) enrichGroupMembers() {
 	for _, idpGroup := range sync.report.IdPUserGroups {
 		for idx, member := range idpGroup.Members {
 			if _, ok := usersMappedByUsername[member.Email]; ok {
-				idpGroup.Members[idx].ID = usersMappedByUsername[member.Email].SinkObjectID
+				idpGroup.Members[idx].SDMObjectID = usersMappedByUsername[member.Email].SDMObjectID
 			}
 		}
 	}

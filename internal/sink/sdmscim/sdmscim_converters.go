@@ -60,7 +60,7 @@ func sinkGroupMemberListToSDMSCIM(members []*sink.GroupMember) []scimsdk.GroupMe
 
 func sinkGroupMemberToSDMSCIM(member sink.GroupMember) scimsdk.GroupMember {
 	return scimsdk.GroupMember{
-		ID:    member.ID,
+		ID:    member.SDMObjectID,
 		Email: member.Email,
 	}
 }

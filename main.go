@@ -7,6 +7,7 @@ import (
 	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/source"
+	"scim-integrations/internal/source/google"
 	"scim-integrations/internal/synchronizer"
 )
 
@@ -21,7 +22,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "An error occurred setting up the environment: "+err.Error())
 		os.Exit(-1)
 	}
-	src := source.ByFlag(*flags.IdPFlag)
+	src := getSourceByFlag(*flags.IdPFlag)
 	snc := synchronizer.NewSynchronizer()
 	errCh := make(chan error)
 	go snc.Run(src, errCh)
@@ -49,7 +50,18 @@ waitMainErrCh:
 			}
 		}
 	}
-	for _, err := range errs {
-		fmt.Println(err)
+	if len(errs) > 0 {
+		fmt.Fprintf(os.Stderr, "The following errors were occurred:\n")
+		for _, err := range errs {
+			fmt.Fprintf(os.Stderr, "\t- %v\n", err)
+		}
+		fmt.Println()
 	}
+}
+
+func getSourceByFlag(name string) source.BaseSource {
+	if name == "google" {
+		return google.NewGoogleSource()
+	}
+	return nil
 }

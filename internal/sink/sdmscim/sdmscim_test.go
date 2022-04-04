@@ -127,7 +127,7 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 }
 
 func TestSDMSCIMCreateUser(t *testing.T) {
-	t.Run("should create an user when passed a valid source user", func(t *testing.T) {
+	t.Run("should create an user when passed a valid IdP user", func(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKUsersCreate, mockedSCIMSDKUserCreate)
 
@@ -267,7 +267,7 @@ func TestSDMSCIMFetchGroups(t *testing.T) {
 }
 
 func TestSDMSCIMCreateGroup(t *testing.T) {
-	t.Run("should create a group when passed a valid source group", func(t *testing.T) {
+	t.Run("should create a group when passed a valid IdP group", func(t *testing.T) {
 		defer monkey.UnpatchAll()
 		monkey.Patch(internalSCIMSDKGroupsCreate, mockedSCIMSDKGroupCreate)
 
