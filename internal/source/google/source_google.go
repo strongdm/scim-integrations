@@ -4,33 +4,43 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/option"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
-	"strings"
-
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	admin "google.golang.org/api/admin/directory/v1"
-	"google.golang.org/api/option"
 )
 
 const fetchPageSize = 500
 
-type GoogleSource struct{}
-
 // DefaultGoogleCustomer refer to customer field in: https://developers.google.com/admin-sdk/directory/reference/rest/v1/users/list
 const DefaultGoogleCustomer = "my_customer"
 
-func NewGoogleSource() *GoogleSource {
-	return &GoogleSource{}
+type SourceGoogle interface {
+	FetchUsers(context.Context) ([]*source.User, error)
+	ExtractGroupsFromUsers([]*source.User) []*source.UserGroup
+	InternalGoogleFetchUsers(*admin.Service, string) (*admin.Users, error)
+	TokenFromFile(string) (*oauth2.Token, error)
+	GetGoogleConfig() (*oauth2.Config, error)
 }
 
-func (g *GoogleSource) FetchUsers(ctx context.Context) ([]*source.User, error) {
-	client, err := prepareGoogleHTTPClient()
+type SourceGoogleImpl struct{}
+
+func NewGoogleSource() SourceGoogle {
+	return &SourceGoogleImpl{}
+}
+
+func (g *SourceGoogleImpl) FetchUsers(ctx context.Context) ([]*source.User, error) {
+	return internalFetchUsers(ctx, g)
+}
+
+func internalFetchUsers(ctx context.Context, src SourceGoogle) ([]*source.User, error) {
+	client, err := prepareGoogleHTTPClient(src)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +51,7 @@ func (g *GoogleSource) FetchUsers(ctx context.Context) ([]*source.User, error) {
 	var nextPageToken string
 	var users []*source.User
 	for {
-		response, err := internalGoogleFetchUsers(svc, nextPageToken)
+		response, err := src.InternalGoogleFetchUsers(svc, nextPageToken)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +64,7 @@ func (g *GoogleSource) FetchUsers(ctx context.Context) ([]*source.User, error) {
 	return users, nil
 }
 
-func (*GoogleSource) ExtractGroupsFromUsers(users []*source.User) []*source.UserGroup {
+func (*SourceGoogleImpl) ExtractGroupsFromUsers(users []*source.User) []*source.UserGroup {
 	var groups []*source.UserGroup
 	mappedGroupMembers := map[string][]*sink.GroupMember{}
 	for _, user := range users {
@@ -80,7 +90,7 @@ func (*GoogleSource) ExtractGroupsFromUsers(users []*source.User) []*source.User
 	return groups
 }
 
-func internalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*admin.Users, error) {
+func (*SourceGoogleImpl) InternalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*admin.Users, error) {
 	return service.Users.List().Query(*flags.QueryFlag).Customer(DefaultGoogleCustomer).PageToken(nextPageToken).MaxResults(fetchPageSize).Do()
 }
 
@@ -93,30 +103,25 @@ func googleUsersToSCIMUser(googleUsers []*admin.User) []*source.User {
 			GivenName:  googleUser.Name.GivenName,
 			FamilyName: googleUser.Name.FamilyName,
 			Active:     !googleUser.Suspended,
-			Groups:     getGroups(googleUser.OrgUnitPath),
+			Groups:     []string{googleUser.OrgUnitPath},
 		})
 	}
 	return users
 }
 
-func getGroups(orgUnitPath string) []string {
-	orgUnits := strings.Split(orgUnitPath, "/")
-	return []string{orgUnits[len(orgUnits)-1]}
-}
-
-func prepareGoogleHTTPClient() (*http.Client, error) {
-	config, err := getGoogleConfig()
+func prepareGoogleHTTPClient(src SourceGoogle) (*http.Client, error) {
+	config, err := src.GetGoogleConfig()
 	if err != nil {
 		return nil, err
 	}
-	token, err := tokenFromFile("token.json")
+	token, err := src.TokenFromFile("token.json")
 	if err != nil {
 		return nil, err
 	}
 	return config.Client(context.Background(), token), nil
 }
 
-func tokenFromFile(filePath string) (*oauth2.Token, error) {
+func (*SourceGoogleImpl) TokenFromFile(filePath string) (*oauth2.Token, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -127,7 +132,7 @@ func tokenFromFile(filePath string) (*oauth2.Token, error) {
 	return token, err
 }
 
-func getGoogleConfig() (*oauth2.Config, error) {
+func (*SourceGoogleImpl) GetGoogleConfig() (*oauth2.Config, error) {
 	credentialsBytes, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		return nil, errors.New("Unable to read client secret file: " + err.Error())

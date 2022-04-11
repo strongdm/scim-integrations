@@ -6,23 +6,32 @@ import (
 	"fmt"
 	"os"
 	"scim-integrations/internal/sink"
-	"scim-integrations/internal/source"
+	"strings"
 
-	"github.com/strongdm/scimsdk/scimsdk"
+	"github.com/strongdm/scimsdk"
+	scimmodels "github.com/strongdm/scimsdk/models"
 )
 
-func newSDMSCIMClient() *scimsdk.Client {
+type SinkSDMSCIMImpl struct {
+	client scimsdk.Client
+}
+
+func NewSinkSDMSCIMImpl() *SinkSDMSCIMImpl {
+	return &SinkSDMSCIMImpl{NewSDMSCIMClient()}
+}
+
+func NewSDMSCIMClient() scimsdk.Client {
 	client := scimsdk.NewClient(os.Getenv("SDM_SCIM_TOKEN"), nil)
 	return client
 }
 
-func FetchUsers(ctx context.Context) ([]*sink.UserRow, error) {
-	groups, err := FetchGroups(ctx)
+func (s *SinkSDMSCIMImpl) FetchUsers(ctx context.Context) ([]*sink.UserRow, error) {
+	groups, err := s.FetchGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
 	userGroups := separateGroupsByUser(groups)
-	iterator := internalSCIMSDKUsersList(ctx, nil)
+	iterator := s.client.Users().List(ctx, nil)
 	users, err := usersWithGroupsToSink(iterator, userGroups)
 	if err != nil {
 		return nil, err
@@ -44,38 +53,43 @@ func separateGroupsByUser(groups []*sink.GroupRow) map[string][]*sink.GroupRow {
 	return userGroups
 }
 
-func CreateUser(ctx context.Context, user *source.User) (*sink.UserRow, error) {
-	response, err := internalSCIMSDKUsersCreate(ctx, scimsdk.CreateUser{
-		UserName:   user.UserName,
-		GivenName:  user.GivenName,
-		FamilyName: user.FamilyName,
+func (s *SinkSDMSCIMImpl) CreateUser(ctx context.Context, row *sink.UserRow) (*sink.UserRow, error) {
+	response, err := s.client.Users().Create(ctx, scimmodels.CreateUser{
+		UserName:   row.User.UserName,
+		GivenName:  row.User.GivenName,
+		FamilyName: row.User.FamilyName,
 		Active:     true,
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("An error was occurred creating the user \"%s\": %v", user.UserName, err))
+		return nil, errors.New(fmt.Sprintf("An error was occurred creating the user \"%s\": %v", row.User.UserName, err))
 	}
-	user.SDMObjectID = response.ID
+	row.User.ID = response.ID
 	return userToSink(response, nil), nil
 }
 
-func ReplaceUser(ctx context.Context, user source.User) error {
-	_, err := internalSCIMSDKUsersReplace(ctx, user)
+func (s *SinkSDMSCIMImpl) ReplaceUser(ctx context.Context, row sink.UserRow) error {
+	_, err := s.client.Users().Replace(ctx, row.User.ID, scimmodels.ReplaceUser{
+		UserName:   row.User.UserName,
+		GivenName:  row.User.GivenName,
+		FamilyName: row.User.FamilyName,
+		Active:     row.User.Active,
+	})
 	if err != nil {
-		return errors.New(fmt.Sprintf("An error was occurred updating the user \"%s\": %v", user.UserName, err))
+		return errors.New(fmt.Sprintf("An error was occurred updating the user \"%s\": %v", row.User.UserName, err))
 	}
 	return nil
 }
 
-func DeleteUser(ctx context.Context, row sink.UserRow) error {
-	_, err := internalSCIMSDKUsersDelete(ctx, row.User.ID)
+func (s *SinkSDMSCIMImpl) DeleteUser(ctx context.Context, row sink.UserRow) error {
+	_, err := s.client.Users().Delete(ctx, row.User.ID)
 	if err != nil {
 		return errors.New(fmt.Sprintf("An error was occurred deleting the user \"%s\": %v", row.User.UserName, err))
 	}
 	return nil
 }
 
-func FetchGroups(ctx context.Context) ([]*sink.GroupRow, error) {
-	iterator := internalSCIMSDKGroupsList(ctx, nil)
+func (s *SinkSDMSCIMImpl) FetchGroups(ctx context.Context) ([]*sink.GroupRow, error) {
+	iterator := s.client.Groups().List(ctx, nil)
 	var result []*sink.GroupRow
 	for iterator.Next() {
 		group := *iterator.Value()
@@ -87,75 +101,36 @@ func FetchGroups(ctx context.Context) ([]*sink.GroupRow, error) {
 	return result, nil
 }
 
-func CreateGroup(ctx context.Context, group *source.UserGroup) (*sink.GroupRow, error) {
-	response, err := internalSCIMSDKGroupsCreate(ctx, scimsdk.CreateGroupBody{
-		DisplayName: group.DisplayName,
+func (s *SinkSDMSCIMImpl) CreateGroup(ctx context.Context, group *sink.GroupRow) (*sink.GroupRow, error) {
+	groupName := getGroupName(group.DisplayName)
+	response, err := s.client.Groups().Create(ctx, scimmodels.CreateGroupBody{
+		DisplayName: groupName,
 		Members:     sinkGroupMemberListToSDMSCIM(group.Members),
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("An error was occurred creating the group \"%s\": %v", group.DisplayName, err))
+		return nil, errors.New(fmt.Sprintf("An error was occurred creating the group \"%s\": %v", groupName, err))
 	}
-	group.SDMObjectID = response.ID
+	group.ID = response.ID
 	return groupToSink(response), nil
 }
 
-func ReplaceGroupMembers(ctx context.Context, group *source.UserGroup) error {
-	_, err := internalSCIMSDKGroupsUpdateReplaceMembers(ctx, group.SDMObjectID, sinkGroupMemberListToSDMSCIM(group.Members))
+func (s *SinkSDMSCIMImpl) ReplaceGroupMembers(ctx context.Context, group *sink.GroupRow) error {
+	_, err := s.client.Groups().UpdateReplaceMembers(ctx, group.ID, sinkGroupMemberListToSDMSCIM(group.Members))
 	if err != nil {
 		return errors.New(fmt.Sprintf("An error was occurred replacing the %s group members: %v", group.DisplayName, err))
 	}
 	return nil
 }
 
-func DeleteGroup(ctx context.Context, group *sink.GroupRow) error {
-	_, err := internalSCIMSDKGroupsDelete(ctx, group.ID)
+func (s *SinkSDMSCIMImpl) DeleteGroup(ctx context.Context, group *sink.GroupRow) error {
+	_, err := s.client.Groups().Delete(ctx, group.ID)
 	if err != nil {
 		return errors.New(fmt.Sprintf("An error was occurred deleting the group \"%s\": %v", group.DisplayName, err))
 	}
 	return nil
 }
 
-func internalSCIMSDKUsersList(ctx context.Context, paginationOpts *scimsdk.PaginationOptions) scimsdk.UserIterator {
-	client := newSDMSCIMClient()
-	return client.Users().List(ctx, paginationOpts)
-}
-
-func internalSCIMSDKUsersCreate(ctx context.Context, user scimsdk.CreateUser) (*scimsdk.User, error) {
-	client := newSDMSCIMClient()
-	return client.Users().Create(ctx, user)
-}
-
-func internalSCIMSDKUsersReplace(ctx context.Context, user source.User) (*scimsdk.User, error) {
-	client := newSDMSCIMClient()
-	return client.Users().Replace(ctx, user.SDMObjectID, scimsdk.ReplaceUser{
-		UserName:   user.UserName,
-		GivenName:  user.GivenName,
-		FamilyName: user.FamilyName,
-		Active:     user.Active,
-	})
-}
-
-func internalSCIMSDKUsersDelete(ctx context.Context, userID string) (bool, error) {
-	client := newSDMSCIMClient()
-	return client.Users().Delete(ctx, userID)
-}
-
-func internalSCIMSDKGroupsList(ctx context.Context, paginationOpts *scimsdk.PaginationOptions) scimsdk.GroupIterator {
-	client := newSDMSCIMClient()
-	return client.Groups().List(ctx, paginationOpts)
-}
-
-func internalSCIMSDKGroupsCreate(ctx context.Context, group scimsdk.CreateGroupBody) (*scimsdk.Group, error) {
-	client := newSDMSCIMClient()
-	return client.Groups().Create(ctx, group)
-}
-
-func internalSCIMSDKGroupsUpdateReplaceMembers(ctx context.Context, groupID string, members []scimsdk.GroupMember) (bool, error) {
-	client := newSDMSCIMClient()
-	return client.Groups().UpdateReplaceMembers(ctx, groupID, members)
-}
-
-func internalSCIMSDKGroupsDelete(ctx context.Context, groupID string) (bool, error) {
-	client := newSDMSCIMClient()
-	return client.Groups().Delete(ctx, groupID)
+func getGroupName(orgUnitPath string) string {
+	orgUnits := strings.Split(orgUnitPath, "/")
+	return orgUnits[len(orgUnits)-1]
 }

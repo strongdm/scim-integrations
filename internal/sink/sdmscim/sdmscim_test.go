@@ -4,35 +4,37 @@ import (
 	"context"
 	"errors"
 	"scim-integrations/internal/sink"
-	"scim-integrations/internal/source"
 	"testing"
 	"time"
 
-	"bou.ke/monkey"
 	"github.com/stretchr/testify/assert"
-	"github.com/strongdm/scimsdk/scimsdk"
+	scimmodels "github.com/strongdm/scimsdk/models"
 )
 
 func TestSDMSCIMFetchUsers(t *testing.T) {
 	t.Run("should return a empty list of users when executing the default flow", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKEmptyGroupsList)
-		monkey.Patch(internalSCIMSDKUsersList, mockedInternalSCIMSDKEmptyUsersList)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKEmptyUsersList
+		mock := NewMockSDMSCIM(groupModule, userModule)
 
-		users, err := FetchUsers(context.Background())
+		rows, err := mock.FetchUsers(context.Background())
 
-		assert.Empty(t, users)
+		assert.Empty(t, rows)
 		assert.Nil(t, err)
 	})
 
 	t.Run("should return a list of users when executing the default flow", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKGroupsList)
-		monkey.Patch(internalSCIMSDKUsersList, mockedInternalSCIMSDKUsersList)
-
 		assertT := assert.New(t)
 
-		rows, err := FetchUsers(context.Background())
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKGroupsList
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKUsersList
+		mock := NewMockSDMSCIM(groupModule, userModule)
+
+		rows, err := mock.FetchUsers(context.Background())
 
 		assertT.NotNil(rows)
 		assertT.Nil(err)
@@ -56,13 +58,15 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 	})
 
 	t.Run("should return a list of users without groups when executing the default flow", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKEmptyGroupsList)
-		monkey.Patch(internalSCIMSDKUsersList, mockedInternalSCIMSDKUsersList)
-
 		assertT := assert.New(t)
 
-		rows, err := FetchUsers(context.Background())
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKUsersList
+		mock := NewMockSDMSCIM(groupModule, userModule)
+
+		rows, err := mock.FetchUsers(context.Background())
 
 		assertT.NotNil(rows)
 		assertT.Nil(err)
@@ -80,13 +84,15 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 	})
 
 	t.Run("should return a empty list of users when using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKEmptyGroupsList)
-		monkey.Patch(internalSCIMSDKUsersList, mockedInternalSCIMSDKEmptyUsersList)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKEmptyUsersList
+		mock := NewMockSDMSCIM(groupModule, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		users, err := FetchUsers(timeoutContext)
+		users, err := mock.FetchUsers(timeoutContext)
 
 		assert.Empty(t, users)
 		assert.Nil(t, err)
@@ -94,56 +100,66 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKEmptyGroupsList)
-		monkey.Patch(internalSCIMSDKUsersList, mockedSCIMSDKUserListCTXTimeoutExceeded)
+		assertT := assert.New(t)
+
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKUserListCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(groupModule, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		users, err := FetchUsers(timeoutContext)
+		users, err := mock.FetchUsers(timeoutContext)
 
-		assert.Nil(t, users)
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.Nil(users)
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 
 	t.Run("should return an error when the context timeout exceeds in fetch groups", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKGroupListCTXTimeoutExceeded)
-		monkey.Patch(internalSCIMSDKUsersList, mockedInternalSCIMSDKEmptyUsersList)
+		assertT := assert.New(t)
+
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKGroupListCTXTimeoutExceeded
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKEmptyUsersList
+		mock := NewMockSDMSCIM(groupModule, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		users, err := FetchUsers(timeoutContext)
+		users, err := mock.FetchUsers(timeoutContext)
 
-		assert.Nil(t, users)
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.Nil(users)
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 }
 
 func TestSDMSCIMCreateUser(t *testing.T) {
 	t.Run("should create an user when passed a valid IdP user", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKUsersCreate, mockedSCIMSDKUserCreate)
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).CreateFunc = mockedSCIMSDKUserCreate
+		mock := NewMockSDMSCIM(nil, userModule)
 
-		response, err := CreateUser(context.Background(), &source.User{})
+		response, err := mock.CreateUser(context.Background(), getMockUserRow())
 
 		assert.NotNil(t, response)
 		assert.Nil(t, err)
 	})
 
 	t.Run("should create an user when using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKUsersCreate, mockedSCIMSDKUserCreate)
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).CreateFunc = mockedSCIMSDKUserCreate
+		mock := NewMockSDMSCIM(nil, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateUser(timeoutContext, &source.User{})
+		response, err := mock.CreateUser(timeoutContext, getMockUserRow())
 
 		assert.NotNil(t, response)
 		assert.Nil(t, err)
@@ -151,79 +167,91 @@ func TestSDMSCIMCreateUser(t *testing.T) {
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKUsersCreate, mockedSCIMSDKUserCreateCTXTimeoutExceeded)
+		assertT := assert.New(t)
+
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).CreateFunc = mockedSCIMSDKUserCreateCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(nil, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateUser(timeoutContext, &source.User{})
+		response, err := mock.CreateUser(timeoutContext, getMockUserRow())
 
-		assert.Nil(t, response)
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.Nil(response)
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 }
 
+// TODO: add tests for update user operation
+
 func TestSDMSCIMDeleteUser(t *testing.T) {
 	t.Run("should delete an user when passed a valid user ID", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKUsersDelete, mockedSCIMSDKUserDelete)
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).DeleteFunc = mockedSCIMSDKUserDelete
+		mock := NewMockSDMSCIM(nil, userModule)
 
-		err := DeleteUser(context.Background(), *getMockUserRow())
+		err := mock.DeleteUser(context.Background(), *getMockUserRow())
 
 		assert.Nil(t, err)
 	})
 
 	t.Run("should delete an user when passed a valid user ID and using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKUsersDelete, mockedSCIMSDKUserDelete)
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).DeleteFunc = mockedSCIMSDKUserDelete
+		mock := NewMockSDMSCIM(nil, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteUser(timeoutContext, *getMockUserRow())
+		err := mock.DeleteUser(timeoutContext, *getMockUserRow())
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKUsersDelete, mockedSCIMSDKUserDeleteCTXTimeoutExceeded)
+		assertT := assert.New(t)
+
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).DeleteFunc = mockedSCIMSDKUserDeleteCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(nil, userModule)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteUser(timeoutContext, *getMockUserRow())
+		err := mock.DeleteUser(timeoutContext, *getMockUserRow())
 
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 }
 
 func TestSDMSCIMFetchGroups(t *testing.T) {
 	t.Run("should return a empty list of groups when executing the default flow", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKEmptyGroupsList)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		groups, err := FetchGroups(context.Background())
+		groups, err := mock.FetchGroups(context.Background())
 
 		assert.Empty(t, groups)
 		assert.Nil(t, err)
 	})
 
 	t.Run("should return a list of groups when executing the default flow", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKGroupsList)
-
 		assertT := assert.New(t)
 
-		groups, err := FetchGroups(context.Background())
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKGroupsList
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		assert.NotNil(t, groups)
-		assert.Nil(t, err)
+		groups, err := mock.FetchGroups(context.Background())
+
+		assertT.NotNil(groups)
+		assertT.Nil(err)
 
 		group := groups[0]
 
@@ -238,12 +266,13 @@ func TestSDMSCIMFetchGroups(t *testing.T) {
 	})
 
 	t.Run("should return a empty list of groups when using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKEmptyGroupsList)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		mock := NewMockSDMSCIM(groupModule, nil)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		users, err := FetchGroups(timeoutContext)
+		users, err := mock.FetchGroups(timeoutContext)
 
 		assert.Empty(t, users)
 		assert.Nil(t, err)
@@ -251,39 +280,44 @@ func TestSDMSCIMFetchGroups(t *testing.T) {
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsList, mockedInternalSCIMSDKGroupListCTXTimeoutExceeded)
+		assertT := assert.New(t)
+
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKGroupListCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(groupModule, nil)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		groups, err := FetchGroups(timeoutContext)
+		groups, err := mock.FetchGroups(timeoutContext)
 
-		assert.Nil(t, groups)
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.Nil(groups)
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 }
 
 func TestSDMSCIMCreateGroup(t *testing.T) {
 	t.Run("should create a group when passed a valid IdP group", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsCreate, mockedSCIMSDKGroupCreate)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).CreateFunc = mockedSCIMSDKGroupCreate
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		response, err := CreateGroup(context.Background(), &source.UserGroup{})
+		response, err := mock.CreateGroup(context.Background(), &sink.GroupRow{})
 
 		assert.NotNil(t, response)
 		assert.Nil(t, err)
 	})
 
 	t.Run("should create a group when using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsCreate, mockedSCIMSDKGroupCreate)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).CreateFunc = mockedSCIMSDKGroupCreate
+		mock := NewMockSDMSCIM(groupModule, nil)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateGroup(timeoutContext, &source.UserGroup{})
+		response, err := mock.CreateGroup(timeoutContext, &sink.GroupRow{})
 
 		assert.Empty(t, response)
 		assert.Nil(t, err)
@@ -291,107 +325,129 @@ func TestSDMSCIMCreateGroup(t *testing.T) {
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsCreate, mockedSCIMSDKGroupCreateCTXTimeoutExceeded)
+		assertT := assert.New(t)
+
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).CreateFunc = mockedSCIMSDKGroupCreateCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(groupModule, nil)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		response, err := CreateGroup(timeoutContext, &source.UserGroup{})
+		response, err := mock.CreateGroup(timeoutContext, &sink.GroupRow{})
 
-		assert.Nil(t, response)
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.Nil(response)
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 }
 
 func TestSDMSCIMUpdateReplaceMembers(t *testing.T) {
 	t.Run("should update members in a SDM Group when executing the default flow", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsUpdateReplaceMembers, mockedSCIMSDKGroupUpdateReplaceMembers)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).UpdateReplaceMembersFunc = mockedSCIMSDKGroupUpdateReplaceMembers
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		err := ReplaceGroupMembers(context.Background(), &source.UserGroup{})
+		err := mock.ReplaceGroupMembers(context.Background(), &sink.GroupRow{})
 
 		assert.Nil(t, err)
 	})
 
 	t.Run("should update members in a SDM Group when using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsUpdateReplaceMembers, mockedSCIMSDKGroupUpdateReplaceMembers)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).UpdateReplaceMembersFunc = mockedSCIMSDKGroupUpdateReplaceMembers
+		mock := NewMockSDMSCIM(groupModule, nil)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := ReplaceGroupMembers(timeoutContext, &source.UserGroup{})
+		err := mock.ReplaceGroupMembers(timeoutContext, &sink.GroupRow{})
 
 		assert.Nil(t, err)
 		assert.Nil(t, timeoutContext.Err())
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsUpdateReplaceMembers, mockedSCIMSDKGroupUpdateReplaceMembersCTXTimeoutExceeded)
+		assertT := assert.New(t)
+
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).UpdateReplaceMembersFunc = mockedSCIMSDKGroupUpdateReplaceMembersCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(groupModule, nil)
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := ReplaceGroupMembers(timeoutContext, &source.UserGroup{})
+		err := mock.ReplaceGroupMembers(timeoutContext, &sink.GroupRow{})
 
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
 }
 
 func TestSDMSCIMDeleteGroup(t *testing.T) {
 	t.Run("should delete a group when passed a valid group ID", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsDelete, mockedSCIMSDKGroupDelete)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).DeleteFunc = mockedSCIMSDKGroupDelete
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		err := DeleteGroup(context.Background(), getMockGroupRow())
+		err := mock.DeleteGroup(context.Background(), getMockGroupRow())
 
 		assert.Nil(t, err)
 	})
 
 	t.Run("should delete a group when using a context with timeout", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsDelete, mockedSCIMSDKGroupDelete)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).DeleteFunc = mockedSCIMSDKGroupDelete
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteGroup(timeoutContext, getMockGroupRow())
+		err := mock.DeleteGroup(ctx, getMockGroupRow())
 
 		assert.Nil(t, err)
-		assert.Nil(t, timeoutContext.Err())
+		assert.Nil(t, ctx.Err())
 	})
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
-		defer monkey.UnpatchAll()
-		monkey.Patch(internalSCIMSDKGroupsDelete, mockedSCIMSDKGroupDeleteCTXTimeoutExceeded)
+		assertT := assert.New(t)
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).DeleteFunc = mockedSCIMSDKGroupDeleteCTXTimeoutExceeded
+		mock := NewMockSDMSCIM(groupModule, nil)
 
-		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
-		err := DeleteGroup(timeoutContext, getMockGroupRow())
+		err := mock.DeleteGroup(ctx, getMockGroupRow())
 
-		assert.NotNil(t, err)
-		assert.NotNil(t, timeoutContext.Err())
-		assert.Contains(t, err.Error(), "deadline exceeded")
-		assert.Contains(t, timeoutContext.Err().Error(), "deadline exceeded")
+		assertT.NotNil(err)
+		assertT.NotNil(ctx.Err())
+		assertT.Contains(err.Error(), "deadline exceeded")
+		assertT.Contains(ctx.Err().Error(), "deadline exceeded")
 	})
 }
 
-func mockedSCIMSDKUserListCTXTimeoutExceeded(_ context.Context, _ *scimsdk.PaginationOptions) scimsdk.UserIterator {
+func mockedSCIMSDKUsersList(_ context.Context, _ *scimmodels.PaginationOptions) scimmodels.Iterator[scimmodels.User] {
+	return &MockUserIterator{
+		buffer: []*scimmodels.User{
+			getMockSCIMSDKUser(),
+			getMockSCIMSDKUser(),
+		},
+		index: -1,
+	}
+}
+
+func mockedSCIMSDKUserListCTXTimeoutExceeded(_ context.Context, _ *scimmodels.PaginationOptions) scimmodels.Iterator[scimmodels.User] {
 	time.Sleep(time.Millisecond * 2)
 	return &MockUserIterator{err: errors.New("context deadline exceeded")}
 }
 
-func mockedSCIMSDKUserCreate(_ context.Context, _ scimsdk.CreateUser) (*scimsdk.User, error) {
-	return &scimsdk.User{
-		Name: &scimsdk.UserName{},
+func mockedSCIMSDKUserCreate(_ context.Context, _ scimmodels.CreateUser) (*scimmodels.User, error) {
+	return &scimmodels.User{
+		Name: &scimmodels.UserName{},
 	}, nil
 }
 
-func mockedSCIMSDKUserCreateCTXTimeoutExceeded(_ context.Context, _ scimsdk.CreateUser) (*scimsdk.User, error) {
+func mockedSCIMSDKUserCreateCTXTimeoutExceeded(_ context.Context, _ scimmodels.CreateUser) (*scimmodels.User, error) {
 	time.Sleep(time.Millisecond * 2)
 	return nil, errors.New("context deadline exceeded")
 }
@@ -405,20 +461,20 @@ func mockedSCIMSDKUserDeleteCTXTimeoutExceeded(_ context.Context, _ string) (boo
 	return false, errors.New("context deadline exceeded")
 }
 
-func mockedSCIMSDKGroupCreate(_ context.Context, _ scimsdk.CreateGroupBody) (*scimsdk.Group, error) {
-	return &scimsdk.Group{}, nil
+func mockedSCIMSDKGroupCreate(_ context.Context, _ scimmodels.CreateGroupBody) (*scimmodels.Group, error) {
+	return &scimmodels.Group{}, nil
 }
 
-func mockedSCIMSDKGroupCreateCTXTimeoutExceeded(_ context.Context, _ scimsdk.CreateGroupBody) (*scimsdk.Group, error) {
+func mockedSCIMSDKGroupCreateCTXTimeoutExceeded(_ context.Context, _ scimmodels.CreateGroupBody) (*scimmodels.Group, error) {
 	time.Sleep(time.Millisecond * 2)
 	return nil, errors.New("context deadline exceeded")
 }
 
-func mockedSCIMSDKGroupUpdateReplaceMembers(_ context.Context, _ string, _ []scimsdk.GroupMember) (bool, error) {
+func mockedSCIMSDKGroupUpdateReplaceMembers(_ context.Context, _ string, _ []scimmodels.GroupMember) (bool, error) {
 	return true, nil
 }
 
-func mockedSCIMSDKGroupUpdateReplaceMembersCTXTimeoutExceeded(_ context.Context, _ string, _ []scimsdk.GroupMember) (bool, error) {
+func mockedSCIMSDKGroupUpdateReplaceMembersCTXTimeoutExceeded(_ context.Context, _ string, _ []scimmodels.GroupMember) (bool, error) {
 	time.Sleep(time.Millisecond * 2)
 	return false, errors.New("context deadline exceeded")
 }
@@ -432,26 +488,16 @@ func mockedSCIMSDKGroupDeleteCTXTimeoutExceeded(_ context.Context, _ string) (bo
 	return false, errors.New("context deadline exceeded")
 }
 
-func mockedInternalSCIMSDKUsersList(_ context.Context, _ *scimsdk.PaginationOptions) scimsdk.UserIterator {
+func mockedSCIMSDKEmptyUsersList(_ context.Context, _ *scimmodels.PaginationOptions) scimmodels.Iterator[scimmodels.User] {
 	return &MockUserIterator{
-		buffer: []*scimsdk.User{
-			getMockSCIMSDKUser(),
-			getMockSCIMSDKUser(),
-		},
-		index: -1,
-	}
-}
-
-func mockedInternalSCIMSDKEmptyUsersList(_ context.Context, _ *scimsdk.PaginationOptions) scimsdk.UserIterator {
-	return &MockUserIterator{
-		buffer: []*scimsdk.User{},
+		buffer: []*scimmodels.User{},
 		index:  -1,
 	}
 }
 
-func mockedInternalSCIMSDKGroupsList(_ context.Context, _ *scimsdk.PaginationOptions) scimsdk.GroupIterator {
+func mockedSCIMSDKGroupsList(_ context.Context, _ *scimmodels.PaginationOptions) scimmodels.Iterator[scimmodels.Group] {
 	return &MockGroupIterator{
-		buffer: []*scimsdk.Group{
+		buffer: []*scimmodels.Group{
 			getMockSCIMSDKGroup(),
 			getMockSCIMSDKGroup(),
 		},
@@ -459,36 +505,36 @@ func mockedInternalSCIMSDKGroupsList(_ context.Context, _ *scimsdk.PaginationOpt
 	}
 }
 
-func mockedInternalSCIMSDKEmptyGroupsList(_ context.Context, _ *scimsdk.PaginationOptions) scimsdk.GroupIterator {
+func mockedSCIMSDKEmptyGroupsList(_ context.Context, _ *scimmodels.PaginationOptions) scimmodels.Iterator[scimmodels.Group] {
 	return &MockGroupIterator{
-		buffer: []*scimsdk.Group{},
+		buffer: []*scimmodels.Group{},
 		index:  -1,
 	}
 }
 
-func mockedInternalSCIMSDKGroupListCTXTimeoutExceeded(_ context.Context, _ *scimsdk.PaginationOptions) scimsdk.GroupIterator {
+func mockedSCIMSDKGroupListCTXTimeoutExceeded(_ context.Context, _ *scimmodels.PaginationOptions) scimmodels.Iterator[scimmodels.Group] {
 	time.Sleep(time.Millisecond * 2)
 	return &MockGroupIterator{err: errors.New("context deadline exceeded")}
 }
 
-func getMockSCIMSDKUser() *scimsdk.User {
-	return &scimsdk.User{
+func getMockSCIMSDKUser() *scimmodels.User {
+	return &scimmodels.User{
 		ID:          "www",
 		Active:      true,
 		DisplayName: "xxx",
-		Emails: []scimsdk.UserEmail{
+		Emails: []scimmodels.UserEmail{
 			{
 				Primary: true,
 				Value:   "yyy",
 			},
 		},
-		Groups: []scimsdk.UserGroupReference{
+		Groups: []scimmodels.UserGroupReference{
 			{
 				Value: "yyy",
 				Ref:   "xxx",
 			},
 		},
-		Name: &scimsdk.UserName{
+		Name: &scimmodels.UserName{
 			FamilyName: "ccc",
 			Formatted:  "ddd",
 			GivenName:  "eee",
@@ -498,17 +544,17 @@ func getMockSCIMSDKUser() *scimsdk.User {
 	}
 }
 
-func getMockSCIMSDKGroup() *scimsdk.Group {
-	return &scimsdk.Group{
+func getMockSCIMSDKGroup() *scimmodels.Group {
+	return &scimmodels.Group{
 		ID:          "xxx",
 		DisplayName: "yyy",
-		Members: []*scimsdk.GroupMember{
+		Members: []*scimmodels.GroupMember{
 			{
 				ID:    "www",
 				Email: "yyy",
 			},
 		},
-		Meta: &scimsdk.GroupMetadata{
+		Meta: &scimmodels.GroupMetadata{
 			ResourceType: "www",
 			Location:     "zzz",
 		},

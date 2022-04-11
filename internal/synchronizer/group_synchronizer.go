@@ -2,9 +2,10 @@ package synchronizer
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
-	"scim-integrations/internal/sink/sdmscim"
 	"scim-integrations/internal/source"
 )
 
@@ -18,25 +19,35 @@ func NewGroupSynchronizer(report *Report) *GroupSynchronizer {
 	}
 }
 
-func (sync *GroupSynchronizer) Sync(ctx context.Context, errCh chan error) {
-	err := sync.EnrichReport()
+func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
+	err := sync.EnrichReport(snk)
 	if err != nil {
-		errCh <- err
+		return err
 	}
-	sync.createGroups(ctx, sync.report.IdPUserGroupsToAdd, errCh)
-	err = sync.EnrichReport()
+	err = sync.createGroups(ctx, snk, sync.report.IdPUserGroupsToAdd)
 	if err != nil {
-		errCh <- err
+		return err
 	}
-	sync.replaceGroupMembers(ctx, errCh)
+	err = sync.EnrichReport(snk)
+	if err != nil {
+		return err
+	}
+	err = sync.updateGroupMembers(ctx, snk)
+	if err != nil {
+		return err
+	}
 	if *flags.DeleteGroupsNotInIdPFlag {
-		sync.deleteDisjointedGroups(ctx, errCh)
+		err = sync.deleteDisjointedGroups(ctx, snk)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (sync *GroupSynchronizer) EnrichReport() error {
+func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	if len(sync.report.SinkGroups) == 0 {
-		sdmGroups, err := sdmscim.FetchGroups(context.Background())
+		sdmGroups, err := snk.FetchGroups(context.Background())
 		if err != nil {
 			return err
 		}
@@ -54,7 +65,7 @@ func (sync *GroupSynchronizer) removeSDMGroupsIntersection() ([]*source.UserGrou
 	var disjointedGroups []*sink.GroupRow
 	var existentGroups []*source.UserGroup
 	var sdmGroups = sync.report.SinkGroups
-	var mappedGroups map[string]bool = map[string]bool{}
+	var mappedGroups = map[string]bool{}
 	for _, group := range sync.report.IdPUserGroups {
 		mappedGroups[group.DisplayName] = true
 	}
@@ -86,42 +97,69 @@ func (sync *GroupSynchronizer) removeSDMGroupsIntersection() ([]*source.UserGrou
 
 func (sync *GroupSynchronizer) enrichGroupMembers() {
 	users := append(sync.report.IdPUsersToAdd, sync.report.IdPUsersInSink...)
-	usersMappedByUsername := map[string]*source.User{}
-	for _, idpUser := range users {
-		usersMappedByUsername[idpUser.UserName] = idpUser
+	usersMappedByUsername := map[string]*sink.UserRow{}
+	for _, sdmUser := range users {
+		usersMappedByUsername[sdmUser.User.UserName] = sdmUser
 	}
 	for _, idpGroup := range sync.report.IdPUserGroups {
 		for idx, member := range idpGroup.Members {
 			if _, ok := usersMappedByUsername[member.Email]; ok {
-				idpGroup.Members[idx].SDMObjectID = usersMappedByUsername[member.Email].SDMObjectID
+				idpGroup.Members[idx].SDMObjectID = usersMappedByUsername[member.Email].User.ID
 			}
 		}
 	}
 }
 
-func (sync *GroupSynchronizer) createGroups(ctx context.Context, sinkGroups []*source.UserGroup, errCh chan error) {
+func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*source.UserGroup) error {
 	for _, group := range sinkGroups {
-		_, err := sdmscim.CreateGroup(ctx, group)
+		err := safeRetry(func() error {
+			sdmGroup := groupSourceToGroupSink(group)
+			sdmGroupResponse, err := snk.CreateGroup(ctx, sdmGroup)
+			if sdmGroupResponse != nil {
+				fmt.Println("+ Group created:", sdmGroupResponse.DisplayName)
+			}
+			return err
+		}, "creating a group")
 		if err != nil {
-			errCh <- err
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
+	return nil
 }
 
-func (sync *GroupSynchronizer) replaceGroupMembers(ctx context.Context, errCh chan error) {
-	for _, group := range sync.report.IdPUserGroupsInSink {
-		err := sdmscim.ReplaceGroupMembers(ctx, group)
+func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) error {
+	for _, sourceGroup := range sync.report.IdPUserGroupsInSink {
+		err := safeRetry(func() error {
+			sinkGroup := groupSourceToGroupSink(sourceGroup)
+			err := snk.ReplaceGroupMembers(ctx, sinkGroup)
+			if err == nil {
+				fmt.Println("~ Group updated:", sinkGroup.DisplayName)
+				fmt.Println("\t\t~ Members:")
+				for _, member := range sinkGroup.Members {
+					fmt.Println("\t\t\t~", member.Email)
+				}
+			}
+			return err
+		}, "updating group members")
 		if err != nil {
-			errCh <- err
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
+	return nil
 }
 
-func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, errCh chan error) {
+func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk sink.BaseSink) error {
 	for _, group := range sync.report.SinkGroupsNotInIdP {
-		err := sdmscim.DeleteGroup(ctx, group)
+		err := safeRetry(func() error {
+			err := snk.DeleteGroup(ctx, group)
+			if err == nil {
+				fmt.Println("- Group deleted:", group.DisplayName)
+			}
+			return err
+		}, "deleting a group")
 		if err != nil {
-			errCh <- err
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
+	return nil
 }

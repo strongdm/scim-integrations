@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cenkalti/backoff/v4"
+	"os"
 	"scim-integrations/internal/flags"
+	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"time"
 )
@@ -13,6 +16,7 @@ const colorReset string = "\033[0m"
 const colorRed string = "\033[31m"
 const colorGreen string = "\033[32m"
 const colorYellow string = "\033[33m"
+const retryLimitCount = 4
 
 type Synchronizer struct {
 	report            *Report
@@ -29,23 +33,25 @@ func NewSynchronizer() *Synchronizer {
 	}
 }
 
-func (s *Synchronizer) Run(src source.BaseSource, errCh chan error) {
+func (s *Synchronizer) Run(src source.BaseSource, snk sink.BaseSink) error {
 	fmt.Println("Collecting data...")
-	err := s.fillReport(src)
+	err := s.fillReport(src, snk)
 	if err != nil {
-		errCh <- errors.New(fmt.Sprintf("An error occurred filling the report data: %v", err))
-		close(errCh)
-		return
+		return fmt.Errorf("an error occurred filling the report data: %v", err)
 	}
-	s.performSync(errCh)
+	fmt.Println()
 	s.showEntitiesToBeCreated()
 	s.showEntitiesToBeUpdated()
 	s.showEntitiesToBeDeleted()
+	err = s.performSync(snk)
+	if err != nil {
+		return err
+	}
 	s.showVerboseOutput()
-	close(errCh)
+	return nil
 }
 
-func (s *Synchronizer) fillReport(src source.BaseSource) error {
+func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) error {
 	s.report.Start = time.Now()
 	sourceUsers, err := src.FetchUsers(context.Background())
 	if err != nil {
@@ -54,42 +60,37 @@ func (s *Synchronizer) fillReport(src source.BaseSource) error {
 	sourceGroups := src.ExtractGroupsFromUsers(sourceUsers)
 	s.report.IdPUsers = sourceUsers
 	s.report.IdPUserGroups = sourceGroups
-	err = s.userSynchronizer.EnrichReport()
+	err = s.userSynchronizer.EnrichReport(snk)
 	if err != nil {
 		return err
 	}
-	err = s.groupSynchronizer.EnrichReport()
+	err = s.groupSynchronizer.EnrichReport(snk)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Synchronizer) performSync(errCh chan error) {
+func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 	if !*flags.PlanFlag {
-		fmt.Print("Synchronizing users and groups\n")
-		s.userSynchronizer.Sync(context.Background(), errCh)
-		s.groupSynchronizer.Sync(context.Background(), errCh)
+		fmt.Print("Summary:\n\n")
+		fmt.Print("Synchronizing users:\n\n")
+		err := s.userSynchronizer.Sync(context.Background(), snk)
+		if err != nil {
+			return err
+		}
+		fmt.Print("\nSynchronizing groups:\n\n")
+		err = s.groupSynchronizer.Sync(context.Background(), snk)
+		if err != nil {
+			return err
+		}
+		fmt.Println()
 	}
 	s.report.Complete = time.Now()
+	return nil
 }
 
 func (s *Synchronizer) showEntitiesToBeCreated() {
-	if len(s.report.IdPUsersToAdd) > 0 {
-		fmt.Print(colorGreen, "\nUsers to create:\n\n")
-		for _, user := range s.report.IdPUsersToAdd {
-			fmt.Println("\t+ ID:", user.ID)
-			fmt.Println("\t\t+ Family Name:", user.FamilyName)
-			fmt.Println("\t\t+ Given Name:", user.GivenName)
-			fmt.Println("\t\t+ User Name:", user.UserName)
-			fmt.Println("\t\t+ Active:", user.Active)
-			if user.SDMObjectID != "" {
-				fmt.Println("\t\t+ SDMID:", user.SDMObjectID)
-			}
-			fmt.Println()
-		}
-		fmt.Print(colorReset)
-	}
 	if len(s.report.IdPUserGroupsToAdd) > 0 {
 		fmt.Print(colorGreen, "Groups to create:\n\n")
 		for _, groupRow := range s.report.IdPUserGroupsToAdd {
@@ -97,19 +98,26 @@ func (s *Synchronizer) showEntitiesToBeCreated() {
 			if groupRow.SDMObjectID != "" {
 				fmt.Println("\t+ SDMID:", groupRow.SDMObjectID)
 			}
-			if len(groupRow.Members) > 0 {
-				fmt.Println("\t\t+ Members:")
-				for _, member := range groupRow.Members {
-					fmt.Println("\t\t\t+ ID:", member.ID)
-					fmt.Println("\t\t\t+ E-mail:", member.Email)
-					if member.SDMObjectID != "" {
-						fmt.Println("\t\t\t+ SDMID:", member.SDMObjectID)
-					}
-					fmt.Println()
-				}
-			} else {
-				fmt.Println()
+			fmt.Println()
+		}
+		fmt.Print(colorReset)
+	}
+	if len(s.report.IdPUsersToAdd) > 0 {
+		fmt.Print(colorGreen, "Users to create:\n\n")
+		for _, user := range s.report.IdPUsersToAdd {
+			fmt.Println("\t+ ID:", user.User.ID)
+			fmt.Println("\t\t+ Family Name:", user.User.FamilyName)
+			fmt.Println("\t\t+ Given Name:", user.User.GivenName)
+			fmt.Println("\t\t+ User Name:", user.User.UserName)
+			fmt.Println("\t\t+ Active:", user.User.Active)
+			fmt.Println("\t\t+ Groups:")
+			for _, group := range user.Groups {
+				fmt.Println("\t\t\t+", group)
 			}
+			if user.User.ID != "" {
+				fmt.Println("\t\t+ SDMID:", user.User.ID)
+			}
+			fmt.Println()
 		}
 		fmt.Print(colorReset)
 	}
@@ -117,15 +125,19 @@ func (s *Synchronizer) showEntitiesToBeCreated() {
 
 func (s *Synchronizer) showEntitiesToBeUpdated() {
 	if len(s.report.IdPUsersToUpdate) > 0 {
-		fmt.Println(colorYellow, "Users to update:")
+		fmt.Print(colorYellow, "Users to update:\n\n")
 		for _, user := range s.report.IdPUsersToUpdate {
-			fmt.Println("\t~ ID:", user.ID)
-			fmt.Println("\t\t~ Family Name:", user.FamilyName)
-			fmt.Println("\t\t~ Given Name:", user.GivenName)
-			fmt.Println("\t\t~ User Name:", user.UserName)
-			fmt.Println("\t\t~ Active:", user.Active)
-			if user.SDMObjectID != "" {
-				fmt.Println("\t\t~ SDMID:", user.SDMObjectID)
+			fmt.Println("\t~ ID:", user.User.ID)
+			fmt.Println("\t\t~ Family Name:", user.User.FamilyName)
+			fmt.Println("\t\t~ Given Name:", user.User.GivenName)
+			fmt.Println("\t\t~ User Name:", user.User.UserName)
+			fmt.Println("\t\t~ Active:", user.User.Active)
+			fmt.Println("\t\t~ Groups:")
+			for _, group := range user.Groups {
+				fmt.Println("\t\t\t~", group)
+			}
+			if user.User.ID != "" {
+				fmt.Println("\t\t~ SDMID:", user.User.ID)
 			}
 			fmt.Println()
 		}
@@ -134,38 +146,23 @@ func (s *Synchronizer) showEntitiesToBeUpdated() {
 }
 
 func (s *Synchronizer) showEntitiesToBeDeleted() {
-	if len(s.report.SinkUsersNotInIdP) > 0 && *flags.DeleteUsersNotInIdPFlag {
+	if len(s.report.SinkGroupsNotInIdP) > 0 {
+		fmt.Print(colorRed, "Groups to delete:\n\n")
+		for _, groupRow := range s.report.SinkGroupsNotInIdP {
+			fmt.Println("\t- ID:", groupRow.ID)
+			fmt.Println("\t\t- Display Name:", groupRow.DisplayName)
+			fmt.Println()
+		}
+		fmt.Print(colorReset)
+	}
+	if len(s.report.SinkUsersNotInIdP) > 0 {
 		fmt.Print(colorRed, "Users to delete:\n\n")
 		for _, userRow := range s.report.SinkUsersNotInIdP {
 			user := userRow.User
 			fmt.Println("\t- ID:", user.ID)
 			fmt.Println("\t\t- Display Name:", user.DisplayName)
-			fmt.Println("\t\t- Family Name:", user.FamilyName)
-			fmt.Println("\t\t- Given Name:", user.GivenName)
 			fmt.Println("\t\t- User Name:", user.UserName)
-			fmt.Println("\t\t- Active:", user.Active)
 			fmt.Println()
-		}
-		fmt.Print(colorReset)
-	}
-	if len(s.report.SinkGroupsNotInIdP) > 0 && *flags.DeleteGroupsNotInIdPFlag {
-		fmt.Println(colorRed, "Groups to delete:")
-		for _, groupRow := range s.report.SinkGroupsNotInIdP {
-			fmt.Println("\t- ID:", groupRow.ID)
-			fmt.Println("\t\t- Display Name:", groupRow.DisplayName)
-			if len(groupRow.Members) > 0 {
-				fmt.Println("\t\t- Members:")
-				for _, member := range groupRow.Members {
-					fmt.Println("\t\t\t- ID:", member.ID)
-					fmt.Println("\t\t\t- E-mail:", member.Email)
-					if member.SDMObjectID != "" {
-						fmt.Println("\t\t\t- SDMID:", member.SDMObjectID)
-					}
-					fmt.Println()
-				}
-			} else {
-				fmt.Println()
-			}
 		}
 		fmt.Print(colorReset)
 	}
@@ -182,4 +179,20 @@ func (s *Synchronizer) showVerboseOutput() {
 		fmt.Printf("%d Sink Groups not in IdP\n", len(s.report.SinkGroupsNotInIdP))
 		fmt.Println(s.report.String())
 	}
+}
+
+func safeRetry(fn func() error, actionDescription string) error {
+	var retryCounter int
+	err := backoff.Retry(func() error {
+		err := fn()
+		if err != nil {
+			retryCounter++
+			if retryCounter < retryLimitCount {
+				fmt.Fprintf(os.Stderr, "Failed %s. Retrying the operation for the %dst time\n", actionDescription, retryCounter)
+			}
+			return errors.New("retry limit exceeded with the following error: " + err.Error())
+		}
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), retryLimitCount))
+	return err
 }

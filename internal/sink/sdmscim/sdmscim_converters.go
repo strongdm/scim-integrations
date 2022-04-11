@@ -3,16 +3,15 @@ package sdmscim
 import (
 	"errors"
 	"fmt"
+	scimmodels "github.com/strongdm/scimsdk/models"
 	"scim-integrations/internal/sink"
-
-	"github.com/strongdm/scimsdk/scimsdk"
 )
 
-func usersWithGroupsToSink(iterator scimsdk.UserIterator, userGroups map[string][]*sink.GroupRow) ([]*sink.UserRow, error) {
+func usersWithGroupsToSink(iterator scimmodels.Iterator[scimmodels.User], userGroups map[string][]*sink.GroupRow) ([]*sink.UserRow, error) {
 	var result []*sink.UserRow
 	for iterator.Next() {
-		user := iterator.Value()
-		result = append(result, userToSink(user, userGroups[user.ID]))
+		user := scimmodels.User(*iterator.Value())
+		result = append(result, userToSink(&user, userGroups[user.ID]))
 	}
 	if iterator.Err() != nil {
 		return nil, errors.New(fmt.Sprintf("An error was occurred listing the SDM users: %v\n", iterator.Err()))
@@ -20,7 +19,7 @@ func usersWithGroupsToSink(iterator scimsdk.UserIterator, userGroups map[string]
 	return result, nil
 }
 
-func userToSink(response *scimsdk.User, userGroups []*sink.GroupRow) *sink.UserRow {
+func userToSink(response *scimmodels.User, userGroups []*sink.GroupRow) *sink.UserRow {
 	return &sink.UserRow{
 		User: &sink.User{
 			ID:          response.ID,
@@ -34,7 +33,7 @@ func userToSink(response *scimsdk.User, userGroups []*sink.GroupRow) *sink.UserR
 	}
 }
 
-func groupToSink(response *scimsdk.Group) *sink.GroupRow {
+func groupToSink(response *scimmodels.Group) *sink.GroupRow {
 	return &sink.GroupRow{
 		ID:          response.ID,
 		DisplayName: response.DisplayName,
@@ -42,7 +41,7 @@ func groupToSink(response *scimsdk.Group) *sink.GroupRow {
 	}
 }
 
-func groupMembersToSink(scimMembers []*scimsdk.GroupMember) []*sink.GroupMember {
+func groupMembersToSink(scimMembers []*scimmodels.GroupMember) []*sink.GroupMember {
 	var members []*sink.GroupMember
 	for _, member := range scimMembers {
 		members = append(members, &sink.GroupMember{ID: member.ID, Email: member.Email})
@@ -50,16 +49,16 @@ func groupMembersToSink(scimMembers []*scimsdk.GroupMember) []*sink.GroupMember 
 	return members
 }
 
-func sinkGroupMemberListToSDMSCIM(members []*sink.GroupMember) []scimsdk.GroupMember {
-	var sdmMembers []scimsdk.GroupMember
+func sinkGroupMemberListToSDMSCIM(members []*sink.GroupMember) []scimmodels.GroupMember {
+	var sdmMembers []scimmodels.GroupMember
 	for _, member := range members {
 		sdmMembers = append(sdmMembers, sinkGroupMemberToSDMSCIM(*member))
 	}
 	return sdmMembers
 }
 
-func sinkGroupMemberToSDMSCIM(member sink.GroupMember) scimsdk.GroupMember {
-	return scimsdk.GroupMember{
+func sinkGroupMemberToSDMSCIM(member sink.GroupMember) scimmodels.GroupMember {
+	return scimmodels.GroupMember{
 		ID:    member.SDMObjectID,
 		Email: member.Email,
 	}

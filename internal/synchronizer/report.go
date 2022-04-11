@@ -13,9 +13,9 @@ type Report struct {
 	Complete time.Time
 
 	IdPUsers         []*source.User
-	IdPUsersToAdd    []*source.User
-	IdPUsersInSink   []*source.User
-	IdPUsersToUpdate []*source.User
+	IdPUsersToAdd    []*sink.UserRow
+	IdPUsersInSink   []*sink.UserRow
+	IdPUsersToUpdate []*sink.UserRow
 
 	IdPUserGroups       []*source.UserGroup
 	IdPUserGroupsToAdd  []*source.UserGroup
@@ -30,9 +30,9 @@ type Report struct {
 func newReport() *Report {
 	return &Report{
 		IdPUsers:            []*source.User{},
-		IdPUsersToAdd:       []*source.User{},
-		IdPUsersInSink:      []*source.User{},
-		IdPUsersToUpdate:    []*source.User{},
+		IdPUsersToAdd:       []*sink.UserRow{},
+		IdPUsersInSink:      []*sink.UserRow{},
+		IdPUsersToUpdate:    []*sink.UserRow{},
 		IdPUserGroups:       []*source.UserGroup{},
 		IdPUserGroupsToAdd:  []*source.UserGroup{},
 		IdPUserGroupsInSink: []*source.UserGroup{},

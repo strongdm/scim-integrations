@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"scim-integrations/internal/flags"
+	"scim-integrations/internal/sink/sdmscim"
 	"scim-integrations/internal/source"
 	"scim-integrations/internal/source/google"
 	"scim-integrations/internal/synchronizer"
@@ -24,9 +25,11 @@ func main() {
 	}
 	src := getSourceByFlag(*flags.IdPFlag)
 	snc := synchronizer.NewSynchronizer()
-	errCh := make(chan error)
-	go snc.Run(src, errCh)
-	exposeErrors(errCh)
+	snk := sdmscim.NewSinkSDMSCIMImpl()
+	err = snc.Run(src, snk)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 	fmt.Printf("Sync with %s IdP finished\n", *flags.IdPFlag)
 }
 
@@ -35,28 +38,6 @@ func validateEnvironment() error {
 		return errors.New("you need to set the SDM_SCIM_TOKEN env var")
 	}
 	return nil
-}
-
-func exposeErrors(errCh chan error) {
-	var errs []error
-waitMainErrCh:
-	for {
-		select {
-		case err, ok := <-errCh:
-			if ok {
-				errs = append(errs, err)
-			} else {
-				break waitMainErrCh
-			}
-		}
-	}
-	if len(errs) > 0 {
-		fmt.Fprintf(os.Stderr, "The following errors were occurred:\n")
-		for _, err := range errs {
-			fmt.Fprintf(os.Stderr, "\t- %v\n", err)
-		}
-		fmt.Println()
-	}
 }
 
 func getSourceByFlag(name string) source.BaseSource {
