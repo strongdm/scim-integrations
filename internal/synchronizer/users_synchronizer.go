@@ -3,7 +3,6 @@ package synchronizer
 import (
 	"context"
 	"fmt"
-	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
@@ -110,8 +109,9 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink
 			return err
 		}, "creating an user")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
+		waitChokingTime()
 	}
 	return nil
 }
@@ -126,8 +126,9 @@ func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink
 			return err
 		}, "updating an user")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
+		waitChokingTime()
 	}
 	return nil
 }
@@ -142,8 +143,9 @@ func (sync *UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk 
 			return err
 		}, "deleting an user")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
+		waitChokingTime()
 	}
 	return nil
 }

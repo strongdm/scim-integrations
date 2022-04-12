@@ -18,6 +18,7 @@ const colorRed string = "\033[31m"
 const colorGreen string = "\033[32m"
 const colorYellow string = "\033[33m"
 const retryLimitCount = 4
+const chokingWaitTime = 3 * time.Second
 
 type Synchronizer struct {
 	report            *Report
@@ -198,6 +199,10 @@ func safeRetry(fn func() error, actionDescription string) error {
 			return errors.New("retry limit exceeded with the following error: " + err.Error())
 		}
 		return nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), retryLimitCount))
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(chokingWaitTime), retryLimitCount))
 	return err
+}
+
+func waitChokingTime() {
+	time.Sleep(chokingWaitTime)
 }

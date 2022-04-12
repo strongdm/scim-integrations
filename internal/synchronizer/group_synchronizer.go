@@ -3,7 +3,6 @@ package synchronizer
 import (
 	"context"
 	"fmt"
-	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
@@ -121,8 +120,9 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 			return err
 		}, "creating a group")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
+		waitChokingTime()
 	}
 	return nil
 }
@@ -142,8 +142,9 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 			return err
 		}, "updating group members")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
+		waitChokingTime()
 	}
 	return nil
 }
@@ -158,8 +159,9 @@ func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk s
 			return err
 		}, "deleting a group")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
+		waitChokingTime()
 	}
 	return nil
 }
