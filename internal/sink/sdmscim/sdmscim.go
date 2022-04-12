@@ -2,7 +2,6 @@ package sdmscim
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"scim-integrations/internal/sink"
@@ -61,7 +60,7 @@ func (s *SinkSDMSCIMImpl) CreateUser(ctx context.Context, row *sink.UserRow) (*s
 		Active:     true,
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("An error was occurred creating the user \"%s\": %v", row.User.UserName, err))
+		return nil, fmt.Errorf("An error was occurred creating the user \"%s\": %v", row.User.UserName, err)
 	}
 	row.User.ID = response.ID
 	return userToSink(response, nil), nil
@@ -75,7 +74,7 @@ func (s *SinkSDMSCIMImpl) ReplaceUser(ctx context.Context, row sink.UserRow) err
 		Active:     row.User.Active,
 	})
 	if err != nil {
-		return errors.New(fmt.Sprintf("An error was occurred updating the user \"%s\": %v", row.User.UserName, err))
+		return fmt.Errorf("An error was occurred updating the user \"%s\": %v", row.User.UserName, err)
 	}
 	return nil
 }
@@ -83,7 +82,7 @@ func (s *SinkSDMSCIMImpl) ReplaceUser(ctx context.Context, row sink.UserRow) err
 func (s *SinkSDMSCIMImpl) DeleteUser(ctx context.Context, row sink.UserRow) error {
 	_, err := s.client.Users().Delete(ctx, row.User.ID)
 	if err != nil {
-		return errors.New(fmt.Sprintf("An error was occurred deleting the user \"%s\": %v", row.User.UserName, err))
+		return fmt.Errorf("An error was occurred deleting the user \"%s\": %v", row.User.UserName, err)
 	}
 	return nil
 }
@@ -96,7 +95,7 @@ func (s *SinkSDMSCIMImpl) FetchGroups(ctx context.Context) ([]*sink.GroupRow, er
 		result = append(result, groupToSink(&group))
 	}
 	if iterator.Err() != nil {
-		return nil, errors.New(fmt.Sprintf("An error was occurred listing the SDM groups: %v", iterator.Err()))
+		return nil, fmt.Errorf("An error was occurred listing the SDM groups: %v", iterator.Err())
 	}
 	return result, nil
 }
@@ -108,7 +107,7 @@ func (s *SinkSDMSCIMImpl) CreateGroup(ctx context.Context, group *sink.GroupRow)
 		Members:     sinkGroupMemberListToSDMSCIM(group.Members),
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("An error was occurred creating the group \"%s\": %v", groupName, err))
+		return nil, fmt.Errorf("An error was occurred creating the group \"%s\": %v", groupName, err)
 	}
 	group.ID = response.ID
 	return groupToSink(response), nil
@@ -117,7 +116,7 @@ func (s *SinkSDMSCIMImpl) CreateGroup(ctx context.Context, group *sink.GroupRow)
 func (s *SinkSDMSCIMImpl) ReplaceGroupMembers(ctx context.Context, group *sink.GroupRow) error {
 	_, err := s.client.Groups().UpdateReplaceMembers(ctx, group.ID, sinkGroupMemberListToSDMSCIM(group.Members))
 	if err != nil {
-		return errors.New(fmt.Sprintf("An error was occurred replacing the %s group members: %v", group.DisplayName, err))
+		return fmt.Errorf("An error was occurred replacing the %s group members: %v", group.DisplayName, err)
 	}
 	return nil
 }
@@ -125,7 +124,7 @@ func (s *SinkSDMSCIMImpl) ReplaceGroupMembers(ctx context.Context, group *sink.G
 func (s *SinkSDMSCIMImpl) DeleteGroup(ctx context.Context, group *sink.GroupRow) error {
 	_, err := s.client.Groups().Delete(ctx, group.ID)
 	if err != nil {
-		return errors.New(fmt.Sprintf("An error was occurred deleting the group \"%s\": %v", group.DisplayName, err))
+		return fmt.Errorf("An error was occurred deleting the group \"%s\": %v", group.DisplayName, err)
 	}
 	return nil
 }
@@ -133,4 +132,15 @@ func (s *SinkSDMSCIMImpl) DeleteGroup(ctx context.Context, group *sink.GroupRow)
 func getGroupName(orgUnitPath string) string {
 	orgUnits := strings.Split(orgUnitPath, "/")
 	return orgUnits[len(orgUnits)-1]
+}
+
+func treatErr(opErr error, description string) error {
+	if opErr != nil {
+		err := fmt.Errorf("%v: %v", description, opErr)
+		if sink.ErrorIsUnexpected(opErr) {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, err)
+	}
+	return nil
 }

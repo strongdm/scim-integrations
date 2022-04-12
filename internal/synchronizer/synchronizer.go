@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cenkalti/backoff/v4"
 	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 const colorReset string = "\033[0m"
@@ -186,6 +187,10 @@ func safeRetry(fn func() error, actionDescription string) error {
 	err := backoff.Retry(func() error {
 		err := fn()
 		if err != nil {
+			if !sink.ErrorIsUnexpected(err) {
+				fmt.Fprintln(os.Stderr, err)
+				return nil
+			}
 			retryCounter++
 			if retryCounter < retryLimitCount {
 				fmt.Fprintf(os.Stderr, "Failed %s. Retrying the operation for the %dst time\n", actionDescription, retryCounter)
