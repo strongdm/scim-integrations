@@ -9,16 +9,19 @@ import (
 )
 
 type GroupSynchronizer struct {
-	report *Report
+	report      *Report
+	rateLimiter *RateLimiter
 }
 
-func NewGroupSynchronizer(report *Report) *GroupSynchronizer {
+func NewGroupSynchronizer(report *Report, rateLimiter *RateLimiter) *GroupSynchronizer {
 	return &GroupSynchronizer{
-		report: report,
+		report:      report,
+		rateLimiter: rateLimiter,
 	}
 }
 
 func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
+	sync.rateLimiter.Start()
 	err := sync.EnrichReport(snk)
 	if err != nil {
 		return err
@@ -111,7 +114,7 @@ func (sync *GroupSynchronizer) enrichGroupMembers() {
 
 func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*source.UserGroup) error {
 	for _, group := range sinkGroups {
-		err := safeRetry(func() error {
+		err := safeRetry(sync.rateLimiter, func() error {
 			sdmGroup := groupSourceToGroupSink(group)
 			response, err := snk.CreateGroup(ctx, sdmGroup)
 			if err != nil {
@@ -123,14 +126,13 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 		if err != nil {
 			return err
 		}
-		waitChokingTime()
 	}
 	return nil
 }
 
 func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) error {
 	for _, sourceGroup := range sync.report.IdPUserGroupsInSink {
-		err := safeRetry(func() error {
+		err := safeRetry(sync.rateLimiter, func() error {
 			sinkGroup := groupSourceToGroupSink(sourceGroup)
 			err := snk.ReplaceGroupMembers(ctx, sinkGroup)
 			if err != nil {
@@ -146,14 +148,13 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 		if err != nil {
 			return err
 		}
-		waitChokingTime()
 	}
 	return nil
 }
 
 func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk sink.BaseSink) error {
 	for _, group := range sync.report.SinkGroupsNotInIdP {
-		err := safeRetry(func() error {
+		err := safeRetry(sync.rateLimiter, func() error {
 			err := snk.DeleteGroup(ctx, group)
 			if err != nil {
 				return err
@@ -164,7 +165,6 @@ func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk s
 		if err != nil {
 			return err
 		}
-		waitChokingTime()
 	}
 	return nil
 }

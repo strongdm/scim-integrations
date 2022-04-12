@@ -18,9 +18,9 @@ const colorRed string = "\033[31m"
 const colorGreen string = "\033[32m"
 const colorYellow string = "\033[33m"
 const retryLimitCount = 4
-const chokingWaitTime = 3 * time.Second
 
 type Synchronizer struct {
+	rateLimiter       *RateLimiter
 	report            *Report
 	userSynchronizer  *UserSynchronizer
 	groupSynchronizer *GroupSynchronizer
@@ -28,10 +28,12 @@ type Synchronizer struct {
 
 func NewSynchronizer() *Synchronizer {
 	report := newReport()
+	rateLimiter := NewRateLimiter()
 	return &Synchronizer{
 		report:            report,
-		userSynchronizer:  NewUserSynchronizer(report),
-		groupSynchronizer: NewGroupSynchronizer(report),
+		rateLimiter:       rateLimiter,
+		userSynchronizer:  NewUserSynchronizer(report, rateLimiter),
+		groupSynchronizer: NewGroupSynchronizer(report, rateLimiter),
 	}
 }
 
@@ -183,10 +185,12 @@ func (s *Synchronizer) showVerboseOutput() {
 	}
 }
 
-func safeRetry(fn func() error, actionDescription string) error {
+func safeRetry(rateLimiter *RateLimiter, fn func() error, actionDescription string) error {
 	var retryCounter int
 	err := backoff.Retry(func() error {
+		rateLimiter.VerifyLimit()
 		err := fn()
+		rateLimiter.IncreaseIdx()
 		if err != nil {
 			if !ErrorIsUnexpected(err) {
 				fmt.Fprintln(os.Stderr, err)
@@ -199,10 +203,6 @@ func safeRetry(fn func() error, actionDescription string) error {
 			return errors.New("retry limit exceeded with the following error: " + err.Error())
 		}
 		return nil
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(chokingWaitTime), retryLimitCount))
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), retryLimitCount))
 	return err
-}
-
-func waitChokingTime() {
-	time.Sleep(chokingWaitTime)
 }

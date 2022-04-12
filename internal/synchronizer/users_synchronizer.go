@@ -9,16 +9,19 @@ import (
 )
 
 type UserSynchronizer struct {
-	report *Report
+	rateLimiter *RateLimiter
+	report      *Report
 }
 
-func NewUserSynchronizer(report *Report) *UserSynchronizer {
+func NewUserSynchronizer(report *Report, rateLimiter *RateLimiter) *UserSynchronizer {
 	return &UserSynchronizer{
-		report: report,
+		report:      report,
+		rateLimiter: rateLimiter,
 	}
 }
 
 func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
+	sync.rateLimiter.Start()
 	err := sync.createUsers(ctx, snk, sync.report.IdPUsersToAdd)
 	if err != nil {
 		return err
@@ -99,9 +102,10 @@ func (sync *UserSynchronizer) removeSDMUsersIntersection() ([]*sink.UserRow, []*
 	return newUsers, disjointedUsers, existentUsers, usersWithUpdatedData
 }
 
-func (*UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
+func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
 	for _, sdmUser := range sdmUsers {
-		err := safeRetry(func() error {
+
+		err := safeRetry(sync.rateLimiter, func() error {
 			sdmUserResponse, err := snk.CreateUser(ctx, sdmUser)
 			if err != nil {
 				return err
@@ -112,14 +116,13 @@ func (*UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdm
 		if err != nil {
 			return err
 		}
-		waitChokingTime()
 	}
 	return nil
 }
 
-func (*UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
+func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
 	for _, sdmUser := range sdmUsers {
-		err := safeRetry(func() error {
+		err := safeRetry(sync.rateLimiter, func() error {
 			err := snk.ReplaceUser(ctx, *sdmUser)
 			if err != nil {
 				return err
@@ -130,14 +133,13 @@ func (*UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdm
 		if err != nil {
 			return err
 		}
-		waitChokingTime()
 	}
 	return nil
 }
 
-func (*UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
+func (sync *UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
 	for _, user := range users {
-		err := safeRetry(func() error {
+		err := safeRetry(sync.rateLimiter, func() error {
 			err := snk.DeleteUser(ctx, *user)
 			if err != nil {
 				return err
@@ -148,7 +150,6 @@ func (*UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk sink.
 		if err != nil {
 			return err
 		}
-		waitChokingTime()
 	}
 	return nil
 }
