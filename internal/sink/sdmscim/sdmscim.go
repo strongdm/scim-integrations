@@ -133,14 +133,3 @@ func getGroupName(orgUnitPath string) string {
 	orgUnits := strings.Split(orgUnitPath, "/")
 	return orgUnits[len(orgUnits)-1]
 }
-
-func treatErr(opErr error, description string) error {
-	if opErr != nil {
-		err := fmt.Errorf("%v: %v", description, opErr)
-		if sink.ErrorIsUnexpected(opErr) {
-			return err
-		}
-		fmt.Fprintln(os.Stderr, err)
-	}
-	return nil
-}

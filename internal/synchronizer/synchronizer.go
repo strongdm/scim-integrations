@@ -188,7 +188,7 @@ func safeRetry(fn func() error, actionDescription string) error {
 	err := backoff.Retry(func() error {
 		err := fn()
 		if err != nil {
-			if !sink.ErrorIsUnexpected(err) {
+			if !ErrorIsUnexpected(err) {
 				fmt.Fprintln(os.Stderr, err)
 				return nil
 			}

@@ -113,11 +113,12 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 	for _, group := range sinkGroups {
 		err := safeRetry(func() error {
 			sdmGroup := groupSourceToGroupSink(group)
-			sdmGroupResponse, err := snk.CreateGroup(ctx, sdmGroup)
-			if sdmGroupResponse != nil {
-				fmt.Println("+ Group created:", sdmGroupResponse.DisplayName)
+			response, err := snk.CreateGroup(ctx, sdmGroup)
+			if err != nil {
+				return err
 			}
-			return err
+			fmt.Println("+ Group created:", response.DisplayName)
+			return nil
 		}, "creating a group")
 		if err != nil {
 			return err
@@ -132,14 +133,15 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 		err := safeRetry(func() error {
 			sinkGroup := groupSourceToGroupSink(sourceGroup)
 			err := snk.ReplaceGroupMembers(ctx, sinkGroup)
-			if err == nil {
-				fmt.Println("~ Group updated:", sinkGroup.DisplayName)
-				fmt.Println("\t\t~ Members:")
-				for _, member := range sinkGroup.Members {
-					fmt.Println("\t\t\t~", member.Email)
-				}
+			if err != nil {
+				return err
 			}
-			return err
+			fmt.Println("~ Group updated:", sinkGroup.DisplayName)
+			fmt.Println("\t\t~ Members:")
+			for _, member := range sinkGroup.Members {
+				fmt.Println("\t\t\t~", member.Email)
+			}
+			return nil
 		}, "updating group members")
 		if err != nil {
 			return err
@@ -153,10 +155,11 @@ func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk s
 	for _, group := range sync.report.SinkGroupsNotInIdP {
 		err := safeRetry(func() error {
 			err := snk.DeleteGroup(ctx, group)
-			if err == nil {
-				fmt.Println("- Group deleted:", group.DisplayName)
+			if err != nil {
+				return err
 			}
-			return err
+			fmt.Println("- Group deleted:", group.DisplayName)
+			return nil
 		}, "deleting a group")
 		if err != nil {
 			return err

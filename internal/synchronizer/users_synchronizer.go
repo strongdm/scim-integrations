@@ -99,14 +99,15 @@ func (sync *UserSynchronizer) removeSDMUsersIntersection() ([]*sink.UserRow, []*
 	return newUsers, disjointedUsers, existentUsers, usersWithUpdatedData
 }
 
-func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
+func (*UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
 	for _, sdmUser := range sdmUsers {
 		err := safeRetry(func() error {
 			sdmUserResponse, err := snk.CreateUser(ctx, sdmUser)
-			if err == nil {
-				fmt.Println("+ User created:", sdmUserResponse.User.UserName)
+			if err != nil {
+				return err
 			}
-			return err
+			fmt.Println("+ User created:", sdmUserResponse.User.UserName)
+			return nil
 		}, "creating an user")
 		if err != nil {
 			return err
@@ -116,14 +117,15 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink
 	return nil
 }
 
-func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
+func (*UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
 	for _, sdmUser := range sdmUsers {
 		err := safeRetry(func() error {
 			err := snk.ReplaceUser(ctx, *sdmUser)
-			if err == nil {
-				fmt.Println("~ User updated:", sdmUser.User.UserName)
+			if err != nil {
+				return err
 			}
-			return err
+			fmt.Println("~ User updated:", sdmUser.User.UserName)
+			return nil
 		}, "updating an user")
 		if err != nil {
 			return err
@@ -133,14 +135,15 @@ func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink
 	return nil
 }
 
-func (sync *UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
+func (*UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
 	for _, user := range users {
 		err := safeRetry(func() error {
 			err := snk.DeleteUser(ctx, *user)
 			if err != nil {
-				fmt.Println("- User deleted:", user.User.UserName)
+				return err
 			}
-			return err
+			fmt.Println("- User deleted:", user.User.UserName)
+			return nil
 		}, "deleting an user")
 		if err != nil {
 			return err
