@@ -17,9 +17,10 @@ type Report struct {
 	IdPUsersInSink   []*sink.UserRow
 	IdPUsersToUpdate []*sink.UserRow
 
-	IdPUserGroups       []*source.UserGroup
-	IdPUserGroupsToAdd  []*source.UserGroup
-	IdPUserGroupsInSink []*source.UserGroup
+	IdPUserGroups         []*source.UserGroup
+	IdPUserGroupsToAdd    []*sink.GroupRow
+	IdPUserGroupsInSink   []*sink.GroupRow
+	IdPUserGroupsToUpdate []*sink.GroupRow
 
 	SinkUsers          []*sink.UserRow
 	SinkGroups         []*sink.GroupRow
@@ -29,17 +30,18 @@ type Report struct {
 
 func newReport() *Report {
 	return &Report{
-		IdPUsers:            []*source.User{},
-		IdPUsersToAdd:       []*sink.UserRow{},
-		IdPUsersInSink:      []*sink.UserRow{},
-		IdPUsersToUpdate:    []*sink.UserRow{},
-		IdPUserGroups:       []*source.UserGroup{},
-		IdPUserGroupsToAdd:  []*source.UserGroup{},
-		IdPUserGroupsInSink: []*source.UserGroup{},
-		SinkUsers:           []*sink.UserRow{},
-		SinkGroups:          []*sink.GroupRow{},
-		SinkUsersNotInIdP:   []*sink.UserRow{},
-		SinkGroupsNotInIdP:  []*sink.GroupRow{},
+		IdPUsers:              []*source.User{},
+		IdPUsersToAdd:         []*sink.UserRow{},
+		IdPUsersInSink:        []*sink.UserRow{},
+		IdPUsersToUpdate:      []*sink.UserRow{},
+		IdPUserGroups:         []*source.UserGroup{},
+		IdPUserGroupsToAdd:    []*sink.GroupRow{},
+		IdPUserGroupsInSink:   []*sink.GroupRow{},
+		IdPUserGroupsToUpdate: []*sink.GroupRow{},
+		SinkUsers:             []*sink.UserRow{},
+		SinkGroups:            []*sink.GroupRow{},
+		SinkUsersNotInIdP:     []*sink.UserRow{},
+		SinkGroupsNotInIdP:    []*sink.GroupRow{},
 	}
 }
 

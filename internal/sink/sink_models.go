@@ -22,7 +22,8 @@ type User struct {
 	GivenName   string
 	FamilyName  string
 	Active      bool
-	GroupName   []string
+	GroupNames  []string
+	SinkID      string
 }
 
 type UserRow struct {

@@ -7,6 +7,7 @@ import (
 var commonErrMessages = []string{
 	"values are already in use",
 	"cannot parse member id",
+	"not found",
 }
 
 func ErrorIsUnexpected(err error) bool {

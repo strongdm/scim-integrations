@@ -67,7 +67,7 @@ func (s *SinkSDMSCIMImpl) CreateUser(ctx context.Context, row *sink.UserRow) (*s
 }
 
 func (s *SinkSDMSCIMImpl) ReplaceUser(ctx context.Context, row sink.UserRow) error {
-	_, err := s.client.Users().Replace(ctx, row.User.ID, scimmodels.ReplaceUser{
+	_, err := s.client.Users().Replace(ctx, row.User.SinkID, scimmodels.ReplaceUser{
 		UserName:   row.User.UserName,
 		GivenName:  row.User.GivenName,
 		FamilyName: row.User.FamilyName,
@@ -131,5 +131,5 @@ func (s *SinkSDMSCIMImpl) DeleteGroup(ctx context.Context, group *sink.GroupRow)
 
 func getGroupName(orgUnitPath string) string {
 	orgUnits := strings.Split(orgUnitPath, "/")
-	return orgUnits[len(orgUnits)-1]
+	return strings.Join(orgUnits[1:], "_")
 }

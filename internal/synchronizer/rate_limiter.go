@@ -9,14 +9,13 @@ const rateLimitTime = time.Second * 30
 
 type RateLimiter struct {
 	limit     int
-	index     int
+	counter   int
 	startTime time.Time
 }
 
 func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
-		// limit: 1000,
-		limit: 1,
+		limit: 1000,
 	}
 }
 
@@ -26,23 +25,23 @@ func (r *RateLimiter) Start() {
 	}
 }
 
-func (r *RateLimiter) IncreaseIdx() {
-	r.index++
+func (r *RateLimiter) IncreaseCounter() {
+	r.counter++
 }
 
 func (r *RateLimiter) reset() {
-	r.index = 0
+	r.counter = 0
 	r.startTime = time.Now()
 }
 
 func (r *RateLimiter) VerifyLimit() {
 	secondsDiff := time.Now().Sub(r.startTime).Seconds()
-	reachedLimit := r.index >= r.limit
+	reachedLimit := r.counter >= r.limit
 	if secondsDiff < rateLimitTime.Seconds() && !reachedLimit {
 		return
 	}
-	waitTime := time.Second * time.Duration(int(secondsDiff)+int(chokingWaitSeconds))
 	if reachedLimit {
+		waitTime := time.Second * time.Duration(int(secondsDiff)+int(chokingWaitSeconds))
 		time.Sleep(waitTime)
 	}
 	r.reset()

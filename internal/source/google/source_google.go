@@ -97,7 +97,7 @@ func googleUsersToSCIMUser(googleUsers []*admin.User) []*source.User {
 			GivenName:  googleUser.Name.GivenName,
 			FamilyName: googleUser.Name.FamilyName,
 			Active:     !googleUser.Suspended,
-			Groups:     []string{googleUser.OrgUnitPath},
+			Groups:     []string{getUserGroupName(googleUser)},
 		})
 	}
 	return users
@@ -128,4 +128,11 @@ func (*SourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.Token
 
 	ts := config.TokenSource(ctx)
 	return ts, nil
+}
+
+func getUserGroupName(googleUser *admin.User) string {
+	if googleUser.OrgUnitPath == "/" {
+		return "root"
+	}
+	return googleUser.OrgUnitPath
 }

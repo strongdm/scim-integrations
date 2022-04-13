@@ -17,6 +17,11 @@ const colorReset string = "\033[0m"
 const colorRed string = "\033[31m"
 const colorGreen string = "\033[32m"
 const colorYellow string = "\033[33m"
+
+var createSign = fmt.Sprintf("%s%s%s", colorGreen, "+", colorReset)
+var updateSign = fmt.Sprintf("%s%s%s", colorYellow, "~", colorReset)
+var deleteSign = fmt.Sprintf("%s%s%s", colorRed, "-", colorReset)
+
 const retryLimitCount = 4
 
 type Synchronizer struct {
@@ -77,13 +82,12 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 
 func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 	if !*flags.PlanFlag {
-		fmt.Print("Summary:\n\n")
-		fmt.Print("Synchronizing users:\n\n")
+		fmt.Print("Synchronizing users...\n")
 		err := s.userSynchronizer.Sync(context.Background(), snk)
 		if err != nil {
 			return err
 		}
-		fmt.Print("\nSynchronizing groups:\n\n")
+		fmt.Print("\nSynchronizing groups...\n")
 		err = s.groupSynchronizer.Sync(context.Background(), snk)
 		if err != nil {
 			return err
@@ -96,82 +100,74 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 
 func (s *Synchronizer) showEntitiesToBeCreated() {
 	if len(s.report.IdPUserGroupsToAdd) > 0 {
-		fmt.Print(colorGreen, "Groups to create:\n\n")
-		for _, groupRow := range s.report.IdPUserGroupsToAdd {
-			fmt.Println("\t+ Display Name:", groupRow.DisplayName)
-			if groupRow.SDMObjectID != "" {
-				fmt.Println("\t+ SDMID:", groupRow.SDMObjectID)
-			}
-			fmt.Println()
-		}
-		fmt.Print(colorReset)
+		fmt.Print(colorGreen, "Groups to create:\n\n", colorReset)
+		showItems(s.report.IdPUserGroupsToAdd, createSign, false, describeGroup)
 	}
 	if len(s.report.IdPUsersToAdd) > 0 {
-		fmt.Print(colorGreen, "Users to create:\n\n")
-		for _, user := range s.report.IdPUsersToAdd {
-			fmt.Println("\t+ ID:", user.User.ID)
-			fmt.Println("\t\t+ Family Name:", user.User.FamilyName)
-			fmt.Println("\t\t+ Given Name:", user.User.GivenName)
-			fmt.Println("\t\t+ User Name:", user.User.UserName)
-			fmt.Println("\t\t+ Active:", user.User.Active)
-			if len(user.Groups) > 0 {
-				fmt.Println("\t\t+ Groups:")
-				for _, group := range user.Groups {
-					fmt.Println("\t\t\t+", group)
-				}
-			}
-			if user.User.ID != "" {
-				fmt.Println("\t\t+ SDMID:", user.User.ID)
-			}
-			fmt.Println()
-		}
-		fmt.Print(colorReset)
+		fmt.Print(colorGreen, "Users to create:\n\n", colorReset)
+		showItems(s.report.IdPUsersToAdd, createSign, true, describeUser)
 	}
 }
 
 func (s *Synchronizer) showEntitiesToBeUpdated() {
+	if len(s.report.IdPUserGroupsToUpdate) > 0 {
+		fmt.Print(colorYellow, "Groups to update:\n\n", colorReset)
+		showItems(s.report.IdPUserGroupsToUpdate, updateSign, true, describeGroup)
+	}
 	if len(s.report.IdPUsersToUpdate) > 0 {
-		fmt.Print(colorYellow, "Users to update:\n\n")
-		for _, user := range s.report.IdPUsersToUpdate {
-			fmt.Println("\t~ ID:", user.User.ID)
-			fmt.Println("\t\t~ Family Name:", user.User.FamilyName)
-			fmt.Println("\t\t~ Given Name:", user.User.GivenName)
-			fmt.Println("\t\t~ User Name:", user.User.UserName)
-			fmt.Println("\t\t~ Active:", user.User.Active)
-			fmt.Println("\t\t~ Groups:")
-			for _, group := range user.Groups {
-				fmt.Println("\t\t\t~", group)
-			}
-			if user.User.ID != "" {
-				fmt.Println("\t\t~ SDMID:", user.User.ID)
-			}
-			fmt.Println()
-		}
-		fmt.Print(colorReset)
+		fmt.Print(colorYellow, "Users to update:\n\n", colorReset)
+		showItems(s.report.IdPUsersToUpdate, updateSign, true, describeUser)
 	}
 }
 
 func (s *Synchronizer) showEntitiesToBeDeleted() {
 	if len(s.report.SinkGroupsNotInIdP) > 0 {
-		fmt.Print(colorRed, "Groups to delete:\n\n")
-		for _, groupRow := range s.report.SinkGroupsNotInIdP {
-			fmt.Println("\t- ID:", groupRow.ID)
-			fmt.Println("\t\t- Display Name:", groupRow.DisplayName)
-			fmt.Println()
-		}
-		fmt.Print(colorReset)
+		fmt.Print(colorRed, "Groups to delete:\n\n", colorReset)
+		showItems(s.report.SinkGroupsNotInIdP, deleteSign, false, describeGroup)
 	}
 	if len(s.report.SinkUsersNotInIdP) > 0 {
 		fmt.Print(colorRed, "Users to delete:\n\n")
-		for _, userRow := range s.report.SinkUsersNotInIdP {
-			user := userRow.User
-			fmt.Println("\t- ID:", user.ID)
-			fmt.Println("\t\t- Display Name:", user.DisplayName)
-			fmt.Println("\t\t- User Name:", user.UserName)
-			fmt.Println()
-		}
-		fmt.Print(colorReset)
+		showItems(s.report.SinkUsersNotInIdP, deleteSign, false, describeUser)
 	}
+}
+
+func showItems[T interface{}](list []*T, sign string, showDetails bool, fn func(list *T, sign string, showDetails bool)) {
+	for _, item := range list {
+		fn(item, sign, showDetails)
+	}
+	fmt.Print(colorReset)
+}
+
+func describeGroup(groupRow *sink.GroupRow, sign string, showDetails bool) {
+	if len(groupRow.ID) > 0 {
+		fmt.Println("\t", sign, "ID:", groupRow.ID)
+	}
+	fmt.Println("\t", sign, "Display Name:", groupRow.DisplayName)
+	if len(groupRow.Members) > 0 && showDetails {
+		fmt.Println("\t", sign, "Members:")
+		for _, member := range groupRow.Members {
+			fmt.Println("\t\t", sign, "E-mail:", member.Email)
+		}
+	}
+	fmt.Println()
+}
+
+func describeUser(user *sink.UserRow, sign string, showDetails bool) {
+	fmt.Println("\t", sign, "ID:", user.User.ID)
+	fmt.Println("\t\t", sign, " Display Name:", user.User.GivenName, user.User.FamilyName)
+	fmt.Println("\t\t", sign, " User Name:", user.User.UserName)
+	if showDetails {
+		fmt.Println("\t\t", sign, " Family Name:", user.User.FamilyName)
+		fmt.Println("\t\t", sign, " Given Name:", user.User.GivenName)
+		fmt.Println("\t\t", sign, " Active:", user.User.Active)
+		if len(user.User.GroupNames) > 0 {
+			fmt.Println("\t\t", sign, " Groups:")
+			for _, group := range user.User.GroupNames {
+				fmt.Println("\t\t\t", sign, group)
+			}
+		}
+	}
+	fmt.Println()
 }
 
 func (s *Synchronizer) showVerboseOutput() {
@@ -189,10 +185,15 @@ func (s *Synchronizer) showVerboseOutput() {
 
 func safeRetry(rateLimiter *RateLimiter, fn func() error, actionDescription string) error {
 	var retryCounter int
-	err := backoff.Retry(func() error {
+	err := backoff.Retry(try(rateLimiter, fn, retryCounter, actionDescription), getBackoffConfig())
+	return err
+}
+
+func try(rateLimiter *RateLimiter, fn func() error, retryCounter int, actionDescription string) func() error {
+	return func() error {
 		rateLimiter.VerifyLimit()
 		err := fn()
-		rateLimiter.IncreaseIdx()
+		rateLimiter.IncreaseCounter()
 		if err != nil {
 			if !ErrorIsUnexpected(err) {
 				fmt.Fprintln(os.Stderr, err)
@@ -205,6 +206,9 @@ func safeRetry(rateLimiter *RateLimiter, fn func() error, actionDescription stri
 			return errors.New("retry limit exceeded with the following error: " + err.Error())
 		}
 		return nil
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), retryLimitCount))
-	return err
+	}
+}
+
+func getBackoffConfig() backoff.BackOff {
+	return backoff.WithMaxRetries(backoff.NewExponentialBackOff(), retryLimitCount)
 }

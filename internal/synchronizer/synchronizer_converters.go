@@ -8,12 +8,13 @@ import (
 func userSourceToUserSink(userSource *source.User) *sink.UserRow {
 	return &sink.UserRow{
 		User: &sink.User{
-			ID:          userSource.ID,
-			UserName:    userSource.UserName,
-			GivenName:   userSource.GivenName,
-			FamilyName:  userSource.FamilyName,
-			Active:      userSource.Active,
-			GroupName:   userSource.Groups,
+			ID:         userSource.ID,
+			UserName:   userSource.UserName,
+			GivenName:  userSource.GivenName,
+			FamilyName: userSource.FamilyName,
+			Active:     userSource.Active,
+			GroupNames: userSource.Groups,
+			SinkID:     userSource.SDMObjectID,
 		},
 	}
 }

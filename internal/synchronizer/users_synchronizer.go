@@ -44,13 +44,11 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 }
 
 func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
-	if len(sync.report.SinkUsers) == 0 {
-		sdmUsers, err := snk.FetchUsers(context.Background())
-		if err != nil {
-			return err
-		}
-		sync.report.SinkUsers = sdmUsers
+	sdmUsers, err := snk.FetchUsers(context.Background())
+	if err != nil {
+		return err
 	}
+	sync.report.SinkUsers = sdmUsers
 	newUsers, usersNotInIdP, existentUsers, usersWithUpdatedData := sync.removeSDMUsersIntersection()
 	sync.report.IdPUsersToAdd = newUsers
 	sync.report.IdPUsersInSink = existentUsers
@@ -68,26 +66,24 @@ func (sync *UserSynchronizer) removeSDMUsersIntersection() ([]*sink.UserRow, []*
 	var idpUsers = sync.report.IdPUsers
 	for idpUserIdx, idpUser := range idpUsers {
 		var found bool
-		var needUpdate bool
+		var isOutdated bool
 		var sinkObjectID string
 		for _, row := range sync.report.SinkUsers {
 			if idpUser.UserName == row.User.UserName {
 				found = true
-				needUpdate = userHasOutdatedData(*row, *idpUser)
+				isOutdated = userHasOutdatedData(*row, *idpUser)
 				sinkObjectID = row.User.ID
 				break
 			}
 		}
+		idpUsers[idpUserIdx].SDMObjectID = sinkObjectID
+		sinkUser := userSourceToUserSink(idpUsers[idpUserIdx])
 		if !found {
-			sinkUser := userSourceToUserSink(idpUser)
 			newUsers = append(newUsers, sinkUser)
 		} else {
-			idpUsers[idpUserIdx].SDMObjectID = sinkObjectID
-			if needUpdate {
-				sinkUser := userSourceToUserSink(idpUsers[idpUserIdx])
+			if isOutdated {
 				usersWithUpdatedData = append(usersWithUpdatedData, sinkUser)
 			}
-			sinkUser := userSourceToUserSink(idpUsers[idpUserIdx])
 			existentUsers = append(existentUsers, sinkUser)
 		}
 	}
@@ -110,7 +106,7 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink
 			if err != nil {
 				return err
 			}
-			fmt.Println("+ User created:", sdmUserResponse.User.UserName)
+			fmt.Println(createSign, " User created:", sdmUserResponse.User.UserName)
 			return nil
 		}, "creating an user")
 		if err != nil {
@@ -127,7 +123,7 @@ func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink
 			if err != nil {
 				return err
 			}
-			fmt.Println("~ User updated:", sdmUser.User.UserName)
+			fmt.Println(updateSign, " User updated:", sdmUser.User.UserName)
 			return nil
 		}, "updating an user")
 		if err != nil {
@@ -144,7 +140,7 @@ func (sync *UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk 
 			if err != nil {
 				return err
 			}
-			fmt.Println("- User deleted:", user.User.UserName)
+			fmt.Println(deleteSign, " User deleted:", user.User.UserName)
 			return nil
 		}, "deleting an user")
 		if err != nil {
