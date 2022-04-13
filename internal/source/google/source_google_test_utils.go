@@ -2,17 +2,25 @@ package google
 
 import (
 	"context"
+	"scim-integrations/internal/source"
+
 	"golang.org/x/oauth2"
 	admin "google.golang.org/api/admin/directory/v1"
-	"scim-integrations/internal/source"
+	"google.golang.org/api/option"
 )
 
 type MockSourceGoogle struct {
-	FetchUsersFunc               func(ctx context.Context) ([]*source.User, error)
+	FetchUsersFunc               func(context.Context) ([]*source.User, error)
 	ExtractGroupsFromUsersFunc   func([]*source.User) []*source.UserGroup
 	InternalGoogleFetchUsersFunc func(*admin.Service, string) (*admin.Users, error)
-	TokenFromFileFunc            func(string) (*oauth2.Token, error)
-	GetGoogleConfigFunc          func() (*oauth2.Config, error)
+	GetGoogleAdminServiceFunc    func(ctx context.Context) (*admin.Service, error)
+	GetGoogleTokenSourceFunc     func(ctx context.Context) (oauth2.TokenSource, error)
+}
+
+type MockToken struct{}
+
+func (*MockToken) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{}, nil
 }
 
 func NewMockSourceGoogle() *MockSourceGoogle {
@@ -23,8 +31,7 @@ func NewMockSourceGoogle() *MockSourceGoogle {
 	}
 	mock.ExtractGroupsFromUsersFunc = src.ExtractGroupsFromUsers
 	mock.InternalGoogleFetchUsersFunc = src.InternalGoogleFetchUsers
-	mock.TokenFromFileFunc = src.TokenFromFile
-	mock.GetGoogleConfigFunc = src.GetGoogleConfig
+	mock.GetGoogleTokenSourceFunc = src.GetGoogleTokenSource
 	return &mock
 }
 
@@ -40,10 +47,14 @@ func (src *MockSourceGoogle) InternalGoogleFetchUsers(srv *admin.Service, nextPa
 	return src.InternalGoogleFetchUsersFunc(srv, nextPageToken)
 }
 
-func (src *MockSourceGoogle) TokenFromFile(filePath string) (*oauth2.Token, error) {
-	return src.TokenFromFileFunc(filePath)
+func (src *MockSourceGoogle) GetGoogleAdminService(ctx context.Context) (*admin.Service, error) {
+	ts, err := src.GetGoogleTokenSource(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return admin.NewService(ctx, option.WithTokenSource(ts))
 }
 
-func (src *MockSourceGoogle) GetGoogleConfig() (*oauth2.Config, error) {
-	return src.GetGoogleConfigFunc()
+func (src *MockSourceGoogle) GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+	return src.GetGoogleTokenSourceFunc(ctx)
 }

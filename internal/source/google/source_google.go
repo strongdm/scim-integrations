@@ -2,18 +2,16 @@ package google
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	admin "google.golang.org/api/admin/directory/v1"
-	"google.golang.org/api/option"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/option"
 )
 
 const fetchPageSize = 500
@@ -25,8 +23,8 @@ type SourceGoogle interface {
 	FetchUsers(context.Context) ([]*source.User, error)
 	ExtractGroupsFromUsers([]*source.User) []*source.UserGroup
 	InternalGoogleFetchUsers(*admin.Service, string) (*admin.Users, error)
-	TokenFromFile(string) (*oauth2.Token, error)
-	GetGoogleConfig() (*oauth2.Config, error)
+	GetGoogleAdminService(ctx context.Context) (*admin.Service, error)
+	GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error)
 }
 
 type SourceGoogleImpl struct{}
@@ -40,11 +38,7 @@ func (g *SourceGoogleImpl) FetchUsers(ctx context.Context) ([]*source.User, erro
 }
 
 func internalFetchUsers(ctx context.Context, src SourceGoogle) ([]*source.User, error) {
-	client, err := prepareGoogleHTTPClient(src)
-	if err != nil {
-		return nil, err
-	}
-	svc, err := admin.NewService(ctx, option.WithHTTPClient(client))
+	svc, err := src.GetGoogleAdminService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,37 +103,29 @@ func googleUsersToSCIMUser(googleUsers []*admin.User) []*source.User {
 	return users
 }
 
-func prepareGoogleHTTPClient(src SourceGoogle) (*http.Client, error) {
-	config, err := src.GetGoogleConfig()
+func (g *SourceGoogleImpl) GetGoogleAdminService(ctx context.Context) (*admin.Service, error) {
+	ts, err := g.GetGoogleTokenSource(ctx)
 	if err != nil {
 		return nil, err
 	}
-	token, err := src.TokenFromFile("token.json")
+	svc, err := admin.NewService(ctx, option.WithTokenSource(ts))
 	if err != nil {
 		return nil, err
 	}
-	return config.Client(context.Background(), token), nil
+	return svc, nil
 }
 
-func (*SourceGoogleImpl) TokenFromFile(filePath string) (*oauth2.Token, error) {
-	file, err := os.Open(filePath)
+func (*SourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+	jsonCredentials, err := os.ReadFile(*flags.KeyFlag)
+	if err != nil {
+		return nil, errors.New("Unable to read service account key file: " + err.Error())
+	}
+	config, err := google.JWTConfigFromJSON(jsonCredentials, admin.AdminDirectoryUserScope)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-	token := &oauth2.Token{}
-	err = json.NewDecoder(file).Decode(token)
-	return token, err
-}
+	config.Subject = *flags.UserFlag
 
-func (*SourceGoogleImpl) GetGoogleConfig() (*oauth2.Config, error) {
-	credentialsBytes, err := ioutil.ReadFile("credentials.json")
-	if err != nil {
-		return nil, errors.New("Unable to read client secret file: " + err.Error())
-	}
-	config, err := google.ConfigFromJSON(credentialsBytes, admin.AdminDirectoryUserReadonlyScope)
-	if err != nil {
-		return nil, errors.New("Unable to parse client secret file to config: " + err.Error())
-	}
-	return config, nil
+	ts := config.TokenSource(ctx)
+	return ts, nil
 }

@@ -74,8 +74,7 @@ type MockUserModule struct {
 }
 
 func NewMockUserModule() scimsdk.UserModule {
-	mock := MockUserModule{}
-	return &mock
+	return &MockUserModule{}
 }
 
 func (mum *MockUserModule) Create(ctx context.Context, user scimmodels.CreateUser) (*scimmodels.User, error) {
@@ -115,8 +114,7 @@ type MockGroupModule struct {
 }
 
 func NewMockGroupModule() scimsdk.GroupModule {
-	mock := MockGroupModule{}
-	return &mock
+	return &MockGroupModule{}
 }
 
 func (mgm *MockGroupModule) Create(ctx context.Context, group scimmodels.CreateGroupBody) (*scimmodels.Group, error) {
