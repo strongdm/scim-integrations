@@ -41,22 +41,74 @@ $ go run main.go -help
         delete groups present in SDM but not in the selected Identity Provider
   -delete-users-missing-in-idp
         delete users present in SDM but not in the selected Identity Provider
-  -google
-        use Google as Identity Provider
+  -idp string
+        use Google as an IdP
+  -key string
+        pass a credentials key file path to authenticate in the IdP
   -plan
         do not apply changes just show initial queries
   -query string
         pass a query according to the available query syntax for the selected Identity Provider
+  -user string
+        pass the user e-mail
+  -verbose
+        show the verbose report output
 ```
 
 - Running Google IdP:
 
 ```
-$ go run main.go -google
-5 IdP users, 3 strongDM users in IdP, 3 strongDM roles in Idp
+$ go run main.go -idp google -key ./key.json -user myuser@company.com
+
+Collecting data...
+
+Groups to create:
+
+        + Display Name: /engineering
+
+Users to create:
+
+        + ID: 123456789123456789123
+                + Family Name: Campos
+                + Given Name: Rodolfo
+                + User Name: rodolfo+me3@strongdm.com
+                + Active: true
+                + SDMID:
+
+Users to update:
+
+        ~ ID: 123456789123456789123
+                ~ Family Name: Campos
+                ~ Given Name: Rodolfo
+                ~ User Name: rodolfo+me2@strongdm.com
+                ~ Active: true
+                ~ SDMID: a-uuu
+
+Groups to delete:
+
+        - ID: r-www
+                - Display Name: Removeme
+
+Users to delete:
+
+        - ID: a-xxx
+                - Display Name: User 01
+                - User Name: user+01@strongdm.com
+
+        - ID: a-yyy
+                - Display Name: User 02
+                - User Name: user+02@strongdm.com
+
+        - ID: a-zzz
+                - Display Name: Rodolfo Campos
+                - User Name: rodolfo+me@strongdm.com
+
+Sync with google IdP finished
 ```
 
 - For verbose reporting use `-plan` to your command.
+
+- Currently, to not make an overhead of requests, we defined a limit of 1000 requests per 30s.
 
 ## Contributing
 

@@ -114,9 +114,11 @@ func (s *Synchronizer) showEntitiesToBeCreated() {
 			fmt.Println("\t\t+ Given Name:", user.User.GivenName)
 			fmt.Println("\t\t+ User Name:", user.User.UserName)
 			fmt.Println("\t\t+ Active:", user.User.Active)
-			fmt.Println("\t\t+ Groups:")
-			for _, group := range user.Groups {
-				fmt.Println("\t\t\t+", group)
+			if len(user.Groups) > 0 {
+				fmt.Println("\t\t+ Groups:")
+				for _, group := range user.Groups {
+					fmt.Println("\t\t\t+", group)
+				}
 			}
 			if user.User.ID != "" {
 				fmt.Println("\t\t+ SDMID:", user.User.ID)

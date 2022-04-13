@@ -16,9 +16,8 @@ func TestGoogleSourceFetchUsers(t *testing.T) {
 	t.Run("should return a list of users when executing the default flow", func(t *testing.T) {
 		assertT := assert.New(t)
 		mock := NewMockSourceGoogle()
-		mock.GetGoogleConfigFunc = mockedGetGoogleConfig
+		mock.GetGoogleTokenSourceFunc = mockGetGoogleTokenSourceFunc
 		mock.InternalGoogleFetchUsersFunc = mockedInternalGoogleFetchUsers
-		mock.TokenFromFileFunc = mockedTokenFromFile
 
 		users, err := mock.FetchUsers(context.Background())
 
@@ -30,9 +29,8 @@ func TestGoogleSourceFetchUsers(t *testing.T) {
 	t.Run("should return an empty list of users when executing the default flow", func(t *testing.T) {
 		assertT := assert.New(t)
 		mock := NewMockSourceGoogle()
+		mock.GetGoogleTokenSourceFunc = mockGetGoogleTokenSourceFunc
 		mock.InternalGoogleFetchUsersFunc = mockedInternalGoogleFetchUsersEmpty
-		mock.TokenFromFileFunc = mockedTokenFromFile
-		mock.GetGoogleConfigFunc = mockedGetGoogleConfig
 
 		users, err := mock.FetchUsers(context.Background())
 
@@ -45,21 +43,19 @@ func TestGoogleSourceFetchUsers(t *testing.T) {
 		assertT := assert.New(t)
 		mock := NewMockSourceGoogle()
 		mock.InternalGoogleFetchUsersFunc = mockedInternalGoogleFetchUsers
-		mock.TokenFromFileFunc = mockedTokenFromFile
 
 		users, err := mock.FetchUsers(context.Background())
 
 		assertT.Nil(users)
-		assertT.Contains(err.Error(), "credentials.json")
+		assertT.Contains(err.Error(), "Unable to read service account key")
 		assertT.Contains(err.Error(), "no such file")
 	})
 
 	t.Run("should return a list of users when passing a context with timeout", func(t *testing.T) {
 		assertT := assert.New(t)
 		mock := NewMockSourceGoogle()
+		mock.GetGoogleTokenSourceFunc = mockGetGoogleTokenSourceFunc
 		mock.InternalGoogleFetchUsersFunc = mockedInternalGoogleFetchUsers
-		mock.TokenFromFileFunc = mockedTokenFromFile
-		mock.GetGoogleConfigFunc = mockedGetGoogleConfig
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
@@ -74,8 +70,7 @@ func TestGoogleSourceFetchUsers(t *testing.T) {
 		assertT := assert.New(t)
 		mock := NewMockSourceGoogle()
 		mock.InternalGoogleFetchUsersFunc = mockedInternalGoogleFetchUsersWhenExceedCTXTimeout
-		mock.TokenFromFileFunc = mockedTokenFromFile
-		mock.GetGoogleConfigFunc = mockedGetGoogleConfig
+		mock.GetGoogleTokenSourceFunc = mockGetGoogleTokenSourceFunc
 
 		timeoutContext, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 		defer cancel()
@@ -94,8 +89,7 @@ func TestGoogleSourceExtractGroups(t *testing.T) {
 		assertT := assert.New(t)
 		mock := NewMockSourceGoogle()
 		mock.InternalGoogleFetchUsersFunc = mockedInternalGoogleFetchUsers
-		mock.TokenFromFileFunc = mockedTokenFromFile
-		mock.GetGoogleConfigFunc = mockedGetGoogleConfig
+		mock.GetGoogleTokenSourceFunc = mockGetGoogleTokenSourceFunc
 
 		users, err := mock.FetchUsers(context.Background())
 
@@ -142,10 +136,6 @@ func mockedInternalGoogleFetchUsersWhenExceedCTXTimeout(_ *admin.Service, _ stri
 	return nil, errors.New("context deadline exceeded")
 }
 
-func mockedTokenFromFile(_ string) (*oauth2.Token, error) {
-	return &oauth2.Token{}, nil
-}
-
-func mockedGetGoogleConfig() (*oauth2.Config, error) {
-	return &oauth2.Config{}, nil
+func mockGetGoogleTokenSourceFunc(_ context.Context) (oauth2.TokenSource, error) {
+	return &MockToken{}, nil
 }
