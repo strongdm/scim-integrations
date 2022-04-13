@@ -22,15 +22,15 @@ To use Google Directory as an IdP, you must perform the following steps:
 
 ![img5](https://user-images.githubusercontent.com/49597325/163181027-2c491377-8496-4177-85bf-fe6959ceab9c.png)
 
-6. Click in "Add Key" and select "Create new key"
+6. Click on "Add Key" and select "Create new key"
 
 ![img6](https://user-images.githubusercontent.com/49597325/163181039-2ccdb98e-95c5-49a4-ab6d-ae318e945367.png)
 
-7. Select "JSON" and create the key (then it will download your Service Account Key)
+7. Select "JSON" and create the key (then it will download your Service Account Key - you'll use this key to authenticate in the application)
 
 ![img7](https://user-images.githubusercontent.com/49597325/163181052-ba2c55ac-003a-407c-ace6-8db21435ab5b.png)
 
-8. Go back to the "Details" tab and copy your `Unique ID`
+8. Go back to the "Details" tab and copy your "Unique ID"
 
 ![img8](https://user-images.githubusercontent.com/49597325/163181064-f01be75d-7a3f-48f0-85c5-df736e46254a.png)
 
@@ -38,19 +38,19 @@ To use Google Directory as an IdP, you must perform the following steps:
 
 ![img9](https://user-images.githubusercontent.com/49597325/163181081-05b1833f-13af-4f67-8bca-6b6df6dafcdc.png)
 
-10. Go to "MANAGE DOMAIN WIDE DELEGATION"
+10. Click on "MANAGE DOMAIN WIDE DELEGATION"
 
 ![img10](https://user-images.githubusercontent.com/49597325/163181095-93e1a944-cddc-4600-a30e-46453af9cdab.png)
 
-11. Add a new API Client
+11. Click on "Add new" to add a new API Client
 
 ![img11](https://user-images.githubusercontent.com/49597325/163181113-26017685-1017-40bf-b968-42e612f42c0a.png)
 
-12. Then fill the form with the Service Account Unique ID that you copied and the scope "https://www.googleapis.com/auth/admin.directory.user"
+12. Then fill the form with the Service Account Unique ID that you copied and the OAuth Scope "https://www.googleapis.com/auth/admin.directory.user"
 
 ![img12](https://user-images.githubusercontent.com/49597325/163181123-22e50c19-7a3b-432f-873c-c2c7372920be.png)
 
-And your Service Account is configured. You just need to pass the Service Account JSON file path to the `-key` parameter.
+And your Service Account is configured. You just need to pass the downloaded Service Account JSON file path to the `-key` parameter.
 
 **A user can only be assigned to one OrgUnit at a time**
 
