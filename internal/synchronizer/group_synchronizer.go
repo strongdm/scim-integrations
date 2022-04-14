@@ -72,7 +72,7 @@ func (sync *GroupSynchronizer) removeSDMGroupsIntersection() ([]*sink.GroupRow, 
 	var groupsWithUpdatedData []*sink.GroupRow
 	var mappedGroups = map[string]bool{}
 	for _, group := range sync.report.IdPUserGroups {
-		mappedGroups[group.DisplayName] = true
+		mappedGroups[formatSourceGroupName(group.DisplayName)] = true
 	}
 	for _, group := range sdmGroups {
 		if _, ok := mappedGroups[group.DisplayName]; !ok {
@@ -145,8 +145,15 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 			response, err := snk.CreateGroup(ctx, group)
 			if err != nil {
 				return err
+			} else if response != nil {
+				fmt.Println(createSign, "Group created:", response.DisplayName)
+				if len(response.Members) > 0 {
+					fmt.Println("\t", createSign, "Members:")
+					for _, member := range response.Members {
+						fmt.Printf("\t\t %s %s\n", createSign, member.Email)
+					}
+				}
 			}
-			fmt.Println(createSign, " Group created:", response.DisplayName)
 			return nil
 		}, "creating a group")
 		if err != nil {
@@ -163,10 +170,15 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 			if err != nil {
 				return err
 			}
-			fmt.Println(updateSign, " Group updated:", formatSourceGroupName(group.DisplayName))
-			fmt.Println("\t", updateSign, " Members:")
-			for _, member := range group.Members {
-				fmt.Println("\t\t", updateSign, member.Email)
+			fmt.Println(updateSign, "Group updated:", formatSourceGroupName(group.DisplayName))
+			if len(group.Members) > 0 {
+				fmt.Println("\t", updateSign, "Members:")
+				for _, member := range group.Members {
+					if member.SDMObjectID == "" {
+						continue
+					}
+					fmt.Printf("\t\t %s %s\n", updateSign, member.Email)
+				}
 			}
 			return nil
 		}, "updating group members")
@@ -184,7 +196,7 @@ func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk s
 			if err != nil {
 				return err
 			}
-			fmt.Println(deleteSign, " Group deleted:", group.DisplayName)
+			fmt.Println(deleteSign, "Group deleted:", group.DisplayName)
 			return nil
 		}, "deleting a group")
 		if err != nil {
@@ -196,5 +208,8 @@ func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk s
 
 func formatSourceGroupName(name string) string {
 	orgUnits := strings.Split(name, "/")
+	if len(orgUnits) == 0 {
+		return ""
+	}
 	return strings.Join(orgUnits[1:], "_")
 }

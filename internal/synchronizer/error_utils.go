@@ -4,6 +4,8 @@ import (
 	"strings"
 )
 
+// TODO: add comments saying what each message means - ideal solution:
+// make a map for each error of each entity operation
 var commonErrMessages = []string{
 	"values are already in use",
 	"cannot parse member id",

@@ -106,7 +106,7 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink
 			if err != nil {
 				return err
 			}
-			fmt.Println(createSign, " User created:", sdmUserResponse.User.UserName)
+			fmt.Println(createSign, "User created:", sdmUserResponse.User.UserName)
 			return nil
 		}, "creating an user")
 		if err != nil {
@@ -123,7 +123,7 @@ func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink
 			if err != nil {
 				return err
 			}
-			fmt.Println(updateSign, " User updated:", sdmUser.User.UserName)
+			fmt.Println(updateSign, "User updated:", sdmUser.User.UserName)
 			return nil
 		}, "updating an user")
 		if err != nil {
@@ -140,7 +140,7 @@ func (sync *UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk 
 			if err != nil {
 				return err
 			}
-			fmt.Println(deleteSign, " User deleted:", user.User.UserName)
+			fmt.Println(deleteSign, "User deleted:", user.User.UserName)
 			return nil
 		}, "deleting an user")
 		if err != nil {

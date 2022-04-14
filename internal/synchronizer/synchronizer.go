@@ -82,17 +82,25 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 
 func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 	if !*flags.PlanFlag {
-		fmt.Print("Synchronizing users...\n")
-		err := s.userSynchronizer.Sync(context.Background(), snk)
-		if err != nil {
-			return err
+		haveUsersSyncContent := s.report.HaveUsersSyncContent()
+		haveGroupsSyncContent := s.report.HaveGroupsSyncContent()
+		if haveUsersSyncContent {
+			fmt.Print("Synchronizing users...\n")
+			err := s.userSynchronizer.Sync(context.Background(), snk)
+			if err != nil {
+				return err
+			}
 		}
-		fmt.Print("\nSynchronizing groups...\n")
-		err = s.groupSynchronizer.Sync(context.Background(), snk)
-		if err != nil {
-			return err
+		if haveGroupsSyncContent {
+			fmt.Print("\nSynchronizing groups...\n")
+			err := s.groupSynchronizer.Sync(context.Background(), snk)
+			if err != nil {
+				return err
+			}
 		}
-		fmt.Println()
+		if haveUsersSyncContent || haveGroupsSyncContent {
+			fmt.Println()
+		}
 	}
 	s.report.Complete = time.Now()
 	return nil
@@ -140,30 +148,30 @@ func showItems[T interface{}](list []*T, sign string, showDetails bool, fn func(
 
 func describeGroup(groupRow *sink.GroupRow, sign string, showDetails bool) {
 	if len(groupRow.ID) > 0 {
-		fmt.Println("\t", sign, "ID:", groupRow.ID)
+		fmt.Printf("\t %s ID: %s\n", sign, groupRow.ID)
 	}
-	fmt.Println("\t", sign, "Display Name:", groupRow.DisplayName)
+	fmt.Printf("\t %s Display Name: %s\n", sign, groupRow.DisplayName)
 	if len(groupRow.Members) > 0 && showDetails {
-		fmt.Println("\t", sign, "Members:")
+		fmt.Printf("\t\t %s Members:\n", sign)
 		for _, member := range groupRow.Members {
-			fmt.Println("\t\t", sign, "E-mail:", member.Email)
+			fmt.Printf("\t\t\t %s E-mail: %s\n", sign, member.Email)
 		}
 	}
 	fmt.Println()
 }
 
 func describeUser(user *sink.UserRow, sign string, showDetails bool) {
-	fmt.Println("\t", sign, "ID:", user.User.ID)
-	fmt.Println("\t\t", sign, " Display Name:", user.User.GivenName, user.User.FamilyName)
-	fmt.Println("\t\t", sign, " User Name:", user.User.UserName)
+	fmt.Printf("\t %s ID: %s\n", sign, user.User.ID)
+	fmt.Printf("\t\t %s Display Name: %s %s\n", sign, user.User.GivenName, user.User.FamilyName)
+	fmt.Printf("\t\t %s User Name: %s\n", sign, user.User.UserName)
 	if showDetails {
-		fmt.Println("\t\t", sign, " Family Name:", user.User.FamilyName)
-		fmt.Println("\t\t", sign, " Given Name:", user.User.GivenName)
-		fmt.Println("\t\t", sign, " Active:", user.User.Active)
+		fmt.Printf("\t\t %s Family Name: %s\n", sign, user.User.FamilyName)
+		fmt.Printf("\t\t %s Given Name: %s\n", sign, user.User.GivenName)
+		fmt.Printf("\t\t %s Active: %v\n", sign, user.User.Active)
 		if len(user.User.GroupNames) > 0 {
-			fmt.Println("\t\t", sign, " Groups:")
+			fmt.Printf("\t\t %s Groups:\n", sign)
 			for _, group := range user.User.GroupNames {
-				fmt.Println("\t\t\t", sign, group)
+				fmt.Printf("\t\t\t %s %s\n", sign, group)
 			}
 		}
 	}

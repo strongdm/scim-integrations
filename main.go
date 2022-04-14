@@ -24,28 +24,32 @@ func main() {
 		fmt.Fprintln(os.Stderr, "An error occurred setting up the environment: "+err.Error())
 		os.Exit(-1)
 	}
-	err = start()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	fmt.Printf("Sync with %s IdP finished\n", *flags.IdPFlag)
+	start()
 }
 
-func start() error {
+func start() {
 	src := getSourceByFlag()
 	snc := synchronizer.NewSynchronizer()
 	snk := sdmscim.NewSinkSDMSCIMImpl()
 	concurrency.SetupSignalHandler()
 	err := concurrency.CreateLockFile()
 	if err != nil {
-		return err
+		showErr(err)
+		return
 	}
 	err = snc.Run(src, snk)
-	err = concurrency.RemoveLockFile()
 	if err != nil {
-		return err
+		showErr(err)
 	}
-	return nil
+	removeFileErr := concurrency.RemoveLockFile()
+	if removeFileErr != nil {
+		showErr(removeFileErr)
+	}
+	fmt.Printf("Sync with %s IdP finished\n", *flags.IdPFlag)
+}
+
+func showErr(err error) {
+	fmt.Fprintln(os.Stderr, err)
 }
 
 func validateEnvironment() error {

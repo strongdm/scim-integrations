@@ -67,19 +67,20 @@ Groups to create:
 Users to create:
 
         + ID: 123456789123456789123
+                + Display Name: Rodolfo Campos
                 + Family Name: Campos
                 + Given Name: Rodolfo
                 + User Name: rodolfo+me3@strongdm.com
                 + Active: true
-                + SDMID:
+                + Groups:
+                        + /engineering
 
 Groups to update:
 
-         ~ ID: r-21cca22362571c65
-         ~ Display Name: /Engineering/rodo-group-engineering
+         ~ ID: r-1a2b3c4d5e6f
+         ~ Display Name: /engineering
          ~ Members:
-                 ~ E-mail: quimbik01@strongdm.rocks
-                 ~ E-mail: rodolfo@strongdm.rocks
+                 ~ E-mail: rodolfo+me2@strongdm.com
 
 Users to update:
 
@@ -108,6 +109,21 @@ Users to delete:
         - ID: a-zzz
                 - Display Name: Rodolfo Campos
                 - User Name: rodolfo+me@strongdm.com
+
+
+Synchronizing users...
++ User created: rodolfo+me3@strongdm.com
+~ User updated: rodolfo+me2@strongdm.com
+- User deleted: rodolfo+me@strongdm.com
+
+Synchronizing groups...
++ Group created: engineering
+         + Members:
+                 + rodolfo+me3@strongdm.com
+~ Group updated: engineering
+         ~ Members:
+                 ~ rodolfo+me2@strongdm.com
+~ Group deleted: Removeme
 
 Sync with google IdP finished
 ```

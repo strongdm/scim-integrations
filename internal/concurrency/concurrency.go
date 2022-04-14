@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const fileNotFoundErrMessage = "no such file"
+
 func SetupSignalHandler() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -24,7 +26,7 @@ func CreateLockFile() error {
 	info, err := os.Stat(filename)
 	if info != nil {
 		return errors.New("The application is already running. You cannot run in parallel.")
-	} else if err != nil && !strings.Contains(err.Error(), "no such file") {
+	} else if err != nil && !strings.Contains(err.Error(), fileNotFoundErrMessage) {
 		return err
 	}
 	_, err = os.Create(filename)

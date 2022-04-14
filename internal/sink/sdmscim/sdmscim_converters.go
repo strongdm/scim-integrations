@@ -3,8 +3,9 @@ package sdmscim
 import (
 	"errors"
 	"fmt"
-	scimmodels "github.com/strongdm/scimsdk/models"
 	"scim-integrations/internal/sink"
+
+	scimmodels "github.com/strongdm/scimsdk/models"
 )
 
 func usersWithGroupsToSink(iterator scimmodels.Iterator[scimmodels.User], userGroups map[string][]*sink.GroupRow) ([]*sink.UserRow, error) {
@@ -49,12 +50,17 @@ func groupMembersToSink(scimMembers []*scimmodels.GroupMember) []*sink.GroupMemb
 	return members
 }
 
-func sinkGroupMemberListToSDMSCIM(members []*sink.GroupMember) []scimmodels.GroupMember {
+func sinkGroupMemberListToSDMSCIM(members []*sink.GroupMember) ([]scimmodels.GroupMember, []*sink.GroupMember) {
 	var sdmMembers []scimmodels.GroupMember
+	var notRegisteredMembers []*sink.GroupMember
 	for _, member := range members {
+		if member.SDMObjectID == "" {
+			notRegisteredMembers = append(notRegisteredMembers, member)
+			continue
+		}
 		sdmMembers = append(sdmMembers, sinkGroupMemberToSDMSCIM(*member))
 	}
-	return sdmMembers
+	return sdmMembers, notRegisteredMembers
 }
 
 func sinkGroupMemberToSDMSCIM(member sink.GroupMember) scimmodels.GroupMember {
