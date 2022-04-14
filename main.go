@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"scim-integrations/internal/concurrency"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink/sdmscim"
 	"scim-integrations/internal/source"
@@ -34,13 +35,13 @@ func start() error {
 	src := getSourceByFlag()
 	snc := synchronizer.NewSynchronizer()
 	snk := sdmscim.NewSinkSDMSCIMImpl()
-	setupSignalHandler()
-	err := createLockFile()
+	concurrency.SetupSignalHandler()
+	err := concurrency.CreateLockFile()
 	if err != nil {
 		return err
 	}
 	err = snc.Run(src, snk)
-	err = removeLockFile()
+	err = concurrency.RemoveLockFile()
 	if err != nil {
 		return err
 	}

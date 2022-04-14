@@ -1,4 +1,4 @@
-package main
+package concurrency
 
 import (
 	"errors"
@@ -8,19 +8,19 @@ import (
 	"strings"
 )
 
-func setupSignalHandler() {
+func SetupSignalHandler() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for range c {
-			removeLockFile()
+			RemoveLockFile()
 			os.Exit(-1)
 		}
 	}()
 }
 
-func createLockFile() error {
-	filename := getLockFileName()
+func CreateLockFile() error {
+	filename := GetLockFileName()
 	info, err := os.Stat(filename)
 	if info != nil {
 		return errors.New("The application is already running. You cannot run in parallel.")
@@ -38,8 +38,8 @@ func createLockFile() error {
 	return nil
 }
 
-func removeLockFile() error {
-	filename := getLockFileName()
+func RemoveLockFile() error {
+	filename := GetLockFileName()
 	info, err := os.Stat(filename)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func removeLockFile() error {
 	return nil
 }
 
-func getLockFileName() string {
+func GetLockFileName() string {
 	path, err := os.Getwd()
 	if err != nil {
 		return ""
