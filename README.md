@@ -43,8 +43,6 @@ $ go run main.go -help
         delete users present in SDM but not in the selected Identity Provider
   -idp string
         use Google as an IdP
-  -key string
-        pass a credentials key file path to authenticate in the IdP
   -plan
         do not apply changes just show initial queries
   -query string
@@ -74,6 +72,14 @@ Users to create:
                 + User Name: rodolfo+me3@strongdm.com
                 + Active: true
                 + SDMID:
+
+Groups to update:
+
+         ~ ID: r-21cca22362571c65
+         ~ Display Name: /Engineering/rodo-group-engineering
+         ~ Members:
+                 ~ E-mail: quimbik01@strongdm.rocks
+                 ~ E-mail: rodolfo@strongdm.rocks
 
 Users to update:
 
