@@ -23,14 +23,28 @@ func main() {
 		fmt.Fprintln(os.Stderr, "An error occurred setting up the environment: "+err.Error())
 		os.Exit(-1)
 	}
-	src := getSourceByFlag(*flags.IdPFlag)
-	snc := synchronizer.NewSynchronizer()
-	snk := sdmscim.NewSinkSDMSCIMImpl()
-	err = snc.Run(src, snk)
+	err = start()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 	fmt.Printf("Sync with %s IdP finished\n", *flags.IdPFlag)
+}
+
+func start() error {
+	src := getSourceByFlag()
+	snc := synchronizer.NewSynchronizer()
+	snk := sdmscim.NewSinkSDMSCIMImpl()
+	setupSignalHandler()
+	err := createLockFile()
+	if err != nil {
+		return err
+	}
+	err = snc.Run(src, snk)
+	err = removeLockFile()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func validateEnvironment() error {
@@ -40,8 +54,8 @@ func validateEnvironment() error {
 	return nil
 }
 
-func getSourceByFlag(name string) source.BaseSource {
-	if name == "google" {
+func getSourceByFlag() source.BaseSource {
+	if *flags.IdPFlag == "google" {
 		return google.NewGoogleSource()
 	}
 	return nil
