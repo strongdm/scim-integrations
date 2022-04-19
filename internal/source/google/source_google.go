@@ -27,13 +27,13 @@ type SourceGoogle interface {
 	GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error)
 }
 
-type SourceGoogleImpl struct{}
+type sourceGoogleImpl struct{}
 
 func NewGoogleSource() SourceGoogle {
-	return &SourceGoogleImpl{}
+	return &sourceGoogleImpl{}
 }
 
-func (g *SourceGoogleImpl) FetchUsers(ctx context.Context) ([]*source.User, error) {
+func (g *sourceGoogleImpl) FetchUsers(ctx context.Context) ([]*source.User, error) {
 	return internalFetchUsers(ctx, g)
 }
 
@@ -58,7 +58,7 @@ func internalFetchUsers(ctx context.Context, src SourceGoogle) ([]*source.User, 
 	return users, nil
 }
 
-func (*SourceGoogleImpl) ExtractGroupsFromUsers(users []*source.User) []*source.UserGroup {
+func (*sourceGoogleImpl) ExtractGroupsFromUsers(users []*source.User) []*source.UserGroup {
 	var groups []*source.UserGroup
 	mappedGroupMembers := map[string][]*sink.GroupMember{}
 	for _, user := range users {
@@ -84,7 +84,7 @@ func (*SourceGoogleImpl) ExtractGroupsFromUsers(users []*source.User) []*source.
 	return groups
 }
 
-func (*SourceGoogleImpl) InternalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*admin.Users, error) {
+func (*sourceGoogleImpl) InternalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*admin.Users, error) {
 	return service.Users.List().Query(*flags.QueryFlag).Customer(DefaultGoogleCustomer).PageToken(nextPageToken).MaxResults(fetchPageSize).Do()
 }
 
@@ -103,7 +103,7 @@ func googleUsersToSCIMUser(googleUsers []*admin.User) []*source.User {
 	return users
 }
 
-func (g *SourceGoogleImpl) GetGoogleAdminService(ctx context.Context) (*admin.Service, error) {
+func (g *sourceGoogleImpl) GetGoogleAdminService(ctx context.Context) (*admin.Service, error) {
 	ts, err := g.GetGoogleTokenSource(ctx)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (g *SourceGoogleImpl) GetGoogleAdminService(ctx context.Context) (*admin.Se
 	return svc, nil
 }
 
-func (*SourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
 	jsonCredentials, err := os.ReadFile(os.Getenv("SDM_SCIM_IDP_KEY"))
 	if err != nil {
 		return nil, errors.New("Unable to read service account key file: " + err.Error())

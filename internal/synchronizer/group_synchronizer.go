@@ -3,26 +3,29 @@ package synchronizer
 import (
 	"context"
 	"fmt"
+	"os"
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"strings"
 )
 
+var errorSign = fmt.Sprintf("\033[31mx\033[0m")
+
 type GroupSynchronizer struct {
-	report      *Report
-	rateLimiter *RateLimiter
+	report  *Report
+	retrier Retrier
 }
 
-func NewGroupSynchronizer(report *Report, rateLimiter *RateLimiter) *GroupSynchronizer {
+func newGroupSynchronizer(report *Report, retrier Retrier) *GroupSynchronizer {
 	return &GroupSynchronizer{
-		report:      report,
-		rateLimiter: rateLimiter,
+		report:  report,
+		retrier: retrier,
 	}
 }
 
 func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
-	sync.rateLimiter.Start()
+	sync.retrier.setEntityScope(GroupScope)
 	err := sync.EnrichReport(snk)
 	if err != nil {
 		return err
@@ -40,7 +43,7 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 		return err
 	}
 	if *flags.DeleteGroupsNotInIdPFlag {
-		err = sync.deleteDisjointedGroups(ctx, snk)
+		err = sync.deleteMissingGroups(ctx, snk)
 		if err != nil {
 			return err
 		}
@@ -66,44 +69,53 @@ func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 
 func (sync *GroupSynchronizer) removeSDMGroupsIntersection() ([]*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow) {
 	var newGroups []*sink.GroupRow
-	var disjointedGroups []*sink.GroupRow
+	var missingGroups []*sink.GroupRow = sync.getMissingGroups()
 	var existentGroups []*sink.GroupRow
-	var sdmGroups = sync.report.SinkGroups
 	var groupsWithUpdatedData []*sink.GroupRow
+	sync.enrichGroupMembers()
+	for _, idpGroup := range sync.report.IdPUserGroups {
+		var found bool
+		var isOutdated bool
+		var sinkID string
+		sinkGroup := groupSourceToGroupSink(idpGroup)
+		if found, isOutdated, sinkID = sync.groupExistsInSink(idpGroup); !found {
+			newGroups = append(newGroups, sinkGroup)
+			continue
+		}
+		sinkGroup.ID = sinkID
+		if isOutdated {
+			groupsWithUpdatedData = append(groupsWithUpdatedData, sinkGroup)
+		}
+		existentGroups = append(existentGroups, sinkGroup)
+	}
+	return newGroups, missingGroups, existentGroups, groupsWithUpdatedData
+}
+
+func (sync *GroupSynchronizer) groupExistsInSink(idpGroup *source.UserGroup) (bool, bool, string) {
+	var found, isOutdated bool
+	var sinkID string
+	for _, group := range sync.report.SinkGroups {
+		if found = formatSourceGroupName(idpGroup.DisplayName) == group.DisplayName; found {
+			sinkID = group.ID
+			isOutdated = groupHasOutdatedData(idpGroup, group)
+			break
+		}
+	}
+	return found, isOutdated, sinkID
+}
+
+func (sync *GroupSynchronizer) getMissingGroups() []*sink.GroupRow {
+	var missingGroups []*sink.GroupRow
 	var mappedGroups = map[string]bool{}
 	for _, group := range sync.report.IdPUserGroups {
 		mappedGroups[formatSourceGroupName(group.DisplayName)] = true
 	}
-	for _, group := range sdmGroups {
+	for _, group := range sync.report.SinkGroups {
 		if _, ok := mappedGroups[group.DisplayName]; !ok {
-			disjointedGroups = append(disjointedGroups, group)
+			missingGroups = append(missingGroups, group)
 		}
 	}
-	for _, idpGroup := range sync.report.IdPUserGroups {
-		var found bool
-		var sinkObjectID string
-		var isOutdated bool
-		for _, group := range sdmGroups {
-			if formatSourceGroupName(idpGroup.DisplayName) == group.DisplayName {
-				found = true
-				sinkObjectID = group.ID
-				isOutdated = groupHasOutdatedData(idpGroup, group)
-				break
-			}
-		}
-		sync.enrichGroupMembers()
-		idpGroup.SDMObjectID = sinkObjectID
-		sinkGroup := groupSourceToGroupSink(idpGroup)
-		if !found {
-			newGroups = append(newGroups, sinkGroup)
-		} else {
-			if isOutdated {
-				groupsWithUpdatedData = append(groupsWithUpdatedData, sinkGroup)
-			}
-			existentGroups = append(existentGroups, sinkGroup)
-		}
-	}
-	return newGroups, disjointedGroups, existentGroups, groupsWithUpdatedData
+	return missingGroups
 }
 
 func groupHasOutdatedData(idpGroup *source.UserGroup, sdmGroup *sink.GroupRow) bool {
@@ -133,7 +145,7 @@ func (sync *GroupSynchronizer) enrichGroupMembers() {
 	for _, idpGroup := range sync.report.IdPUserGroups {
 		for idx, member := range idpGroup.Members {
 			if _, ok := usersMappedByUsername[member.Email]; ok {
-				idpGroup.Members[idx].SDMObjectID = usersMappedByUsername[member.Email].User.SinkID
+				idpGroup.Members[idx].SDMObjectID = usersMappedByUsername[member.Email].User.ID
 			}
 		}
 	}
@@ -141,7 +153,12 @@ func (sync *GroupSynchronizer) enrichGroupMembers() {
 
 func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*sink.GroupRow) error {
 	for _, group := range sinkGroups {
-		err := safeRetry(sync.rateLimiter, func() error {
+		err := sync.retrier.Run(func() error {
+			members, notRegisteredMembers := getValidAndUnregisteredMembers(group)
+			if len(notRegisteredMembers) > 0 {
+				informAvoidedMembers(notRegisteredMembers, group.DisplayName)
+			}
+			group.Members = members
 			response, err := snk.CreateGroup(ctx, group)
 			if err != nil {
 				return err
@@ -165,7 +182,19 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 
 func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) error {
 	for _, group := range sync.report.IdPUserGroupsToUpdate {
-		err := safeRetry(sync.rateLimiter, func() error {
+		err := sync.retrier.Run(func() error {
+			members, notRegisteredMembers := getValidAndUnregisteredMembers(group)
+			if len(notRegisteredMembers) > 0 {
+				informAvoidedMembers(notRegisteredMembers, group.DisplayName)
+			}
+			if len(members) == 0 {
+				fmt.Fprintf(os.Stderr, "All the users that were planned to add to the group \"%s\" weren't registered. Skipping...", group.DisplayName)
+				return nil
+			} else if !sync.hasNewMembers(group.DisplayName, members) {
+				fmt.Fprintf(os.Stderr, "All the users that were planned to add and were registered are already in the Group \"%s\". Skipping...\n", group.DisplayName)
+				return nil
+			}
+			group.Members = members
 			err := snk.ReplaceGroupMembers(ctx, group)
 			if err != nil {
 				return err
@@ -189,9 +218,9 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 	return nil
 }
 
-func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk sink.BaseSink) error {
+func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink.BaseSink) error {
 	for _, group := range sync.report.SinkGroupsNotInIdP {
-		err := safeRetry(sync.rateLimiter, func() error {
+		err := sync.retrier.Run(func() error {
 			err := snk.DeleteGroup(ctx, group)
 			if err != nil {
 				return err
@@ -206,10 +235,52 @@ func (sync *GroupSynchronizer) deleteDisjointedGroups(ctx context.Context, snk s
 	return nil
 }
 
+func (sync *GroupSynchronizer) hasNewMembers(name string, members []*sink.GroupMember) bool {
+	var sinkGroup *sink.GroupRow
+	for _, group := range sync.report.SinkGroups {
+		if group.DisplayName == formatSourceGroupName(name) {
+			sinkGroup = group
+			break
+		}
+	}
+	var foundMembersCount int
+	for _, member := range members {
+		for _, sinkGroupMember := range sinkGroup.Members {
+			if found := sinkGroupMember.Email == member.Email; found {
+				foundMembersCount++
+			}
+		}
+	}
+	return foundMembersCount != len(members)
+}
+
 func formatSourceGroupName(name string) string {
 	orgUnits := strings.Split(name, "/")
 	if len(orgUnits) == 0 {
 		return ""
 	}
 	return strings.Join(orgUnits[1:], "_")
+}
+
+func getValidAndUnregisteredMembers(group *sink.GroupRow) ([]*sink.GroupMember, []*sink.GroupMember) {
+	var validMembers []*sink.GroupMember
+	var notRegisteredMembers []*sink.GroupMember
+	for _, member := range group.Members {
+		if member.SDMObjectID == "" {
+			notRegisteredMembers = append(notRegisteredMembers, member)
+			continue
+		}
+		validMembers = append(validMembers, member)
+	}
+	return validMembers, notRegisteredMembers
+}
+
+func informAvoidedMembers(members []*sink.GroupMember, groupName string) {
+	var emailList []string
+	for _, member := range members {
+		emailList = append(emailList, member.Email)
+	}
+	if len(emailList) > 0 {
+		fmt.Fprintln(os.Stderr, fmt.Sprintf("%s The member(s): %s won't be added in the %s group because an error occurred registering them.", errorSign, strings.Join(emailList, ", "), groupName))
+	}
 }

@@ -7,42 +7,59 @@ import (
 const chokingWaitSeconds = 1
 const rateLimitTime = time.Second * 30
 
-type RateLimiter struct {
+type RateLimiter interface {
+	Start()
+	IncreaseCounter()
+	VerifyLimit()
+	GetCounter() int
+}
+
+type rateLimiterImpl struct {
 	limit     int
 	counter   int
 	startTime time.Time
+	rest      func(time.Duration)
 }
 
-func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{
+func newRateLimiter() RateLimiter {
+	return &rateLimiterImpl{
 		limit: 1000,
+		rest:  rest,
 	}
 }
 
-func (r *RateLimiter) Start() {
+func (r *rateLimiterImpl) Start() {
 	if r.startTime.IsZero() {
 		r.startTime = time.Now()
 	}
 }
 
-func (r *RateLimiter) IncreaseCounter() {
+func (r *rateLimiterImpl) IncreaseCounter() {
 	r.counter++
 }
 
-func (r *RateLimiter) reset() {
+func (r *rateLimiterImpl) GetCounter() int {
+	return r.counter
+}
+
+func (r *rateLimiterImpl) reset() {
 	r.counter = 0
 	r.startTime = time.Now()
 }
 
-func (r *RateLimiter) VerifyLimit() {
-	secondsDiff := time.Now().Sub(r.startTime).Seconds()
+func rest(secondsDiff time.Duration) {
+	waitTime := time.Second * time.Duration(int(secondsDiff)+int(chokingWaitSeconds))
+	time.Sleep(waitTime)
+}
+
+func (r *rateLimiterImpl) VerifyLimit() {
+	secondsDiff := time.Now().Sub(r.startTime)
 	reachedLimit := r.counter >= r.limit
-	if secondsDiff < rateLimitTime.Seconds() && !reachedLimit {
+	if int(secondsDiff.Seconds()) < int(rateLimitTime.Seconds()) && !reachedLimit {
 		return
 	}
 	if reachedLimit {
-		waitTime := time.Second * time.Duration(int(secondsDiff)+int(chokingWaitSeconds))
-		time.Sleep(waitTime)
+		r.rest(secondsDiff)
 	}
 	r.reset()
 }

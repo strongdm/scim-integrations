@@ -9,19 +9,19 @@ import (
 )
 
 type UserSynchronizer struct {
-	rateLimiter *RateLimiter
-	report      *Report
+	report  *Report
+	retrier Retrier
 }
 
-func NewUserSynchronizer(report *Report, rateLimiter *RateLimiter) *UserSynchronizer {
+func newUserSynchronizer(report *Report, retrier Retrier) *UserSynchronizer {
 	return &UserSynchronizer{
-		report:      report,
-		rateLimiter: rateLimiter,
+		report:  report,
+		retrier: retrier,
 	}
 }
 
 func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
-	sync.rateLimiter.Start()
+	sync.retrier.setEntityScope(UserScope)
 	err := sync.createUsers(ctx, snk, sync.report.IdPUsersToAdd)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 		return err
 	}
 	if *flags.DeleteUsersNotInIdPFlag {
-		err = sync.deleteDisjointedSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
+		err = sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
 		if err != nil {
 			return err
 		}
@@ -59,49 +59,57 @@ func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 
 func (sync *UserSynchronizer) removeSDMUsersIntersection() ([]*sink.UserRow, []*sink.UserRow, []*sink.UserRow, []*sink.UserRow) {
 	var newUsers []*sink.UserRow
-	var disjointedUsers []*sink.UserRow
+	var missingUsers []*sink.UserRow = sync.getMissingUsers()
 	var existentUsers []*sink.UserRow
 	var usersWithUpdatedData []*sink.UserRow
-	var mappedUsers = map[string]bool{}
-	var idpUsers = sync.report.IdPUsers
-	for idpUserIdx, idpUser := range idpUsers {
-		var found bool
-		var isOutdated bool
-		var sinkObjectID string
-		for _, row := range sync.report.SinkUsers {
-			if idpUser.UserName == row.User.UserName {
-				found = true
-				isOutdated = userHasOutdatedData(*row, *idpUser)
-				sinkObjectID = row.User.ID
-				break
-			}
-		}
-		idpUsers[idpUserIdx].SDMObjectID = sinkObjectID
-		sinkUser := userSourceToUserSink(idpUsers[idpUserIdx])
-		if !found {
+	for _, idpUser := range sync.report.IdPUsers {
+		var sinkUser *sink.UserRow = userSourceToUserSink(idpUser)
+		var found, isOutdated bool
+		var sinkID string
+		if found, isOutdated, sinkID = sync.userExistsInSink(idpUser); !found {
 			newUsers = append(newUsers, sinkUser)
-		} else {
-			if isOutdated {
-				usersWithUpdatedData = append(usersWithUpdatedData, sinkUser)
-			}
-			existentUsers = append(existentUsers, sinkUser)
+			continue
+		}
+		sinkUser.User.ID = sinkID
+		if isOutdated {
+			usersWithUpdatedData = append(usersWithUpdatedData, sinkUser)
+		}
+		existentUsers = append(existentUsers, sinkUser)
+	}
+	return newUsers, missingUsers, existentUsers, usersWithUpdatedData
+}
+
+func (sync *UserSynchronizer) userExistsInSink(idpUser *source.User) (bool, bool, string) {
+	var found bool
+	var isOutdated bool
+	var sinkID string
+	for _, sinkUser := range sync.report.SinkUsers {
+		if found = idpUser.UserName == sinkUser.User.UserName; found {
+			isOutdated = userHasOutdatedData(*sinkUser, *idpUser)
+			sinkID = sinkUser.User.ID
+			break
 		}
 	}
-	for _, user := range idpUsers {
+	return found, isOutdated, sinkID
+}
+
+func (sync *UserSynchronizer) getMissingUsers() []*sink.UserRow {
+	var missingUsers []*sink.UserRow
+	var mappedUsers = map[string]bool{}
+	for _, user := range sync.report.IdPUsers {
 		mappedUsers[user.UserName] = true
 	}
 	for _, row := range sync.report.SinkUsers {
 		if _, ok := mappedUsers[row.User.UserName]; !ok {
-			disjointedUsers = append(disjointedUsers, row)
+			missingUsers = append(missingUsers, row)
 		}
 	}
-	return newUsers, disjointedUsers, existentUsers, usersWithUpdatedData
+	return missingUsers
 }
 
 func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
 	for _, sdmUser := range sdmUsers {
-
-		err := safeRetry(sync.rateLimiter, func() error {
+		err := sync.retrier.Run(func() error {
 			sdmUserResponse, err := snk.CreateUser(ctx, sdmUser)
 			if err != nil {
 				return err
@@ -118,7 +126,7 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink
 
 func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
 	for _, sdmUser := range sdmUsers {
-		err := safeRetry(sync.rateLimiter, func() error {
+		err := sync.retrier.Run(func() error {
 			err := snk.ReplaceUser(ctx, *sdmUser)
 			if err != nil {
 				return err
@@ -133,9 +141,9 @@ func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink
 	return nil
 }
 
-func (sync *UserSynchronizer) deleteDisjointedSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
+func (sync *UserSynchronizer) deleteMissingSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
 	for _, user := range users {
-		err := safeRetry(sync.rateLimiter, func() error {
+		err := sync.retrier.Run(func() error {
 			err := snk.DeleteUser(ctx, *user)
 			if err != nil {
 				return err

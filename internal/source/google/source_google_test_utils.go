@@ -24,7 +24,7 @@ func (*MockToken) Token() (*oauth2.Token, error) {
 }
 
 func NewMockSourceGoogle() *MockSourceGoogle {
-	src := SourceGoogleImpl{}
+	src := sourceGoogleImpl{}
 	mock := MockSourceGoogle{}
 	mock.FetchUsersFunc = func(ctx context.Context) ([]*source.User, error) {
 		return internalFetchUsers(ctx, &mock)

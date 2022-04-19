@@ -52,7 +52,7 @@ To use Google Directory as an IdP, you must perform the following steps:
 
 And your Service Account is configured. You just to set the path of your downloaded Service Account JSON file path into the `SDM_SCIM_IDP_KEY` env var
 
-**A user can only be assigned to one OrgUnit at a time**
+**An user can only be assigned to one OrgUnit at a time**
 
 ### Additional flags
 

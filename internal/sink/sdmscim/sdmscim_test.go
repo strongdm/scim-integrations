@@ -12,19 +12,6 @@ import (
 )
 
 func TestSDMSCIMFetchUsers(t *testing.T) {
-	t.Run("should return a empty list of users when executing the default flow", func(t *testing.T) {
-		groupModule := NewMockGroupModule()
-		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
-		userModule := NewMockUserModule()
-		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKEmptyUsersList
-		mock := NewMockSDMSCIM(groupModule, userModule)
-
-		rows, err := mock.FetchUsers(context.Background())
-
-		assert.Empty(t, rows)
-		assert.Nil(t, err)
-	})
-
 	t.Run("should return a list of users with groups when executing the default flow", func(t *testing.T) {
 		assertT := assert.New(t)
 		groupModule := NewMockGroupModule()
@@ -54,6 +41,19 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 		assertT.NotEmpty(group.ID)
 		assertT.NotEmpty(group.DisplayName)
 		assertT.Len(group.Members, 1)
+	})
+
+	t.Run("should return an empty list of users when executing the default flow", func(t *testing.T) {
+		groupModule := NewMockGroupModule()
+		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
+		userModule := NewMockUserModule()
+		userModule.(*MockUserModule).ListFunc = mockedSCIMSDKEmptyUsersList
+		mock := NewMockSDMSCIM(groupModule, userModule)
+
+		rows, err := mock.FetchUsers(context.Background())
+
+		assert.Empty(t, rows)
+		assert.Nil(t, err)
 	})
 
 	t.Run("should return a list of users without groups when executing the default flow", func(t *testing.T) {
@@ -209,7 +209,6 @@ func TestSDMSCIMDeleteUser(t *testing.T) {
 func TestSDMSCIMFetchGroups(t *testing.T) {
 	t.Run("should return a list of groups when executing the default flow", func(t *testing.T) {
 		assertT := assert.New(t)
-
 		groupModule := NewMockGroupModule()
 		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKGroupsList
 		mock := NewMockSDMSCIM(groupModule, nil)
@@ -231,7 +230,7 @@ func TestSDMSCIMFetchGroups(t *testing.T) {
 		assertT.NotEmpty(member.Email)
 	})
 
-	t.Run("should return a empty list of groups when executing the default flow", func(t *testing.T) {
+	t.Run("should return an empty list of groups when executing the default flow", func(t *testing.T) {
 		groupModule := NewMockGroupModule()
 		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKEmptyGroupsList
 		mock := NewMockSDMSCIM(groupModule, nil)
@@ -244,7 +243,6 @@ func TestSDMSCIMFetchGroups(t *testing.T) {
 
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
 		assertT := assert.New(t)
-
 		groupModule := NewMockGroupModule()
 		groupModule.(*MockGroupModule).ListFunc = mockedSCIMSDKGroupListCTXTimeoutExceeded
 		mock := NewMockSDMSCIM(groupModule, nil)
@@ -273,20 +271,8 @@ func TestSDMSCIMCreateGroup(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("should not create a group when passing an empty list of members", func(t *testing.T) {
-		groupModule := NewMockGroupModule()
-		groupModule.(*MockGroupModule).CreateFunc = mockedSCIMSDKGroupCreate
-		mock := NewMockSDMSCIM(groupModule, nil)
-
-		response, err := mock.CreateGroup(context.Background(), &sink.GroupRow{})
-
-		assert.Nil(t, response)
-		assert.Nil(t, err)
-	})
-
 	t.Run("should return an error when the context timeout exceeds", func(t *testing.T) {
 		assertT := assert.New(t)
-
 		groupModule := NewMockGroupModule()
 		groupModule.(*MockGroupModule).CreateFunc = mockedSCIMSDKGroupCreateCTXTimeoutExceeded
 		mock := NewMockSDMSCIM(groupModule, nil)
@@ -310,16 +296,6 @@ func TestSDMSCIMReplaceMembers(t *testing.T) {
 		mock := NewMockSDMSCIM(groupModule, nil)
 
 		err := mock.ReplaceGroupMembers(context.Background(), getMockGroupRow())
-
-		assert.Nil(t, err)
-	})
-
-	t.Run("should not replace members when passing a group without members", func(t *testing.T) {
-		groupModule := NewMockGroupModule()
-		groupModule.(*MockGroupModule).UpdateReplaceMembersFunc = mockedSCIMSDKGroupReplaceMembers
-		mock := NewMockSDMSCIM(groupModule, nil)
-
-		err := mock.ReplaceGroupMembers(context.Background(), &sink.GroupRow{})
 
 		assert.Nil(t, err)
 	})
