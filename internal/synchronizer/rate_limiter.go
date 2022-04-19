@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"scim-integrations/internal/flags"
 	"time"
 )
 
@@ -8,6 +9,7 @@ const chokingWaitSeconds = 1
 const rateLimitTime = time.Second * 30
 
 type RateLimiter interface {
+	Started() bool
 	Start()
 	IncreaseCounter()
 	VerifyLimit()
@@ -28,8 +30,12 @@ func newRateLimiter() RateLimiter {
 	}
 }
 
+func (r *rateLimiterImpl) Started() bool {
+	return !r.startTime.IsZero()
+}
+
 func (r *rateLimiterImpl) Start() {
-	if r.startTime.IsZero() {
+	if r.startTime.IsZero() && *flags.RateLimiterFlag {
 		r.startTime = time.Now()
 	}
 }
@@ -52,7 +58,12 @@ func rest(secondsDiff time.Duration) {
 	time.Sleep(waitTime)
 }
 
+// VerifyLimit verifies if the request count reached the limit. If yes, it'll trigger a wait until pass the requests
+// rate time.
 func (r *rateLimiterImpl) VerifyLimit() {
+	if !*flags.RateLimiterFlag {
+		return
+	}
 	secondsDiff := time.Now().Sub(r.startTime)
 	reachedLimit := r.counter >= r.limit
 	if int(secondsDiff.Seconds()) < int(rateLimitTime.Seconds()) && !reachedLimit {

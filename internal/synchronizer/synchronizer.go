@@ -26,7 +26,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer() *Synchronizer {
-	report := newReport()
+	report := &Report{}
 	retrier := newRetrier(newRateLimiter())
 	return &Synchronizer{
 		report:            report,
@@ -36,6 +36,7 @@ func NewSynchronizer() *Synchronizer {
 	}
 }
 
+// Run collect the source data and synchronize it with the sink
 func (s *Synchronizer) Run(src source.BaseSource, snk sink.BaseSink) error {
 	fmt.Println("Collecting data...")
 	err := s.fillReport(src, snk)
@@ -48,7 +49,6 @@ func (s *Synchronizer) Run(src source.BaseSource, snk sink.BaseSink) error {
 	if err != nil {
 		return err
 	}
-	s.report.showVerboseOutput()
 	return nil
 }
 
@@ -73,27 +73,14 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 }
 
 func (s *Synchronizer) performSync(snk sink.BaseSink) error {
-	// TODO Change this flag by another named apply
-	if !*flags.PlanFlag {
-		haveUsersSyncContent := s.report.HaveUsersSyncContent()   // TODO Move this to this class
-		haveGroupsSyncContent := s.report.HaveGroupsSyncContent() // TODO Move this to this class
-		s.retrier.GetRateLimiter().Start()                        // TODO Move this somewhere inside the code
-		if haveUsersSyncContent {
-			fmt.Print("Synchronizing users...\n")
-			err := s.userSynchronizer.Sync(context.Background(), snk)
-			if err != nil {
-				return err
-			}
+	if *flags.ApplyFlag {
+		err := s.userSynchronizer.Sync(context.Background(), snk)
+		if err != nil {
+			return err
 		}
-		if haveGroupsSyncContent {
-			fmt.Print("\nSynchronizing groups...\n")
-			err := s.groupSynchronizer.Sync(context.Background(), snk)
-			if err != nil {
-				return err
-			}
-		}
-		if haveUsersSyncContent || haveGroupsSyncContent {
-			fmt.Println()
+		err = s.groupSynchronizer.Sync(context.Background(), snk)
+		if err != nil {
+			return err
 		}
 	}
 	s.report.Complete = time.Now()

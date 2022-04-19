@@ -20,7 +20,12 @@ func newUserSynchronizer(report *Report, retrier Retrier) *UserSynchronizer {
 	}
 }
 
+// Sync synchronizes the users to be added, updated and deleted.
 func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
+	if !sync.haveContentForSync() {
+		return nil
+	}
+	fmt.Println("Synchronizing users...")
 	sync.retrier.setEntityScope(UserScope)
 	err := sync.createUsers(ctx, snk, sync.report.IdPUsersToAdd)
 	if err != nil {
@@ -40,10 +45,11 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 			return err
 		}
 	}
+	fmt.Println()
 	return nil
 }
 
-// Calculates users to be added, updated and deleted
+// EnrichReport calculates users to be added, updated and deleted
 func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	sdmUsers, err := snk.FetchUsers(context.Background())
 	if err != nil {
@@ -56,6 +62,12 @@ func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	sync.report.SinkUsersNotInIdP = usersNotInIdP
 	sync.report.IdPUsersToUpdate = usersWithUpdatedData
 	return nil
+}
+
+func (sync *UserSynchronizer) haveContentForSync() bool {
+	rpt := sync.report
+	return len(rpt.IdPUsersToAdd) > 0 || len(rpt.IdPUsersToUpdate) > 0 ||
+		(*flags.DeleteUsersNotInIdPFlag && len(rpt.SinkUsersNotInIdP) > 0)
 }
 
 func (sync *UserSynchronizer) intersectUsers() ([]*sink.UserRow, []*sink.UserRow, []*sink.UserRow, []*sink.UserRow) {

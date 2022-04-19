@@ -24,7 +24,12 @@ func newGroupSynchronizer(report *Report, retrier Retrier) *GroupSynchronizer {
 	}
 }
 
+// Sync synchronizes the groups to be added, updated and deleted.
 func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error {
+	if !sync.haveContentForSync() {
+		return nil
+	}
+	fmt.Println("\nSynchronizing groups...")
 	sync.retrier.setEntityScope(GroupScope)
 	err := sync.EnrichReport(snk)
 	if err != nil {
@@ -51,7 +56,7 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	return nil
 }
 
-// Calculates groups to be added, updated and deleted
+// EnrichReport calculates groups to be added, updated and deleted
 func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	if len(sync.report.SinkGroups) == 0 {
 		sdmGroups, err := snk.FetchGroups(context.Background())
@@ -66,6 +71,12 @@ func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	sync.report.IdPUserGroupsInSink = existentGroups
 	sync.report.SinkGroupsNotInIdP = groupsNotInIdP
 	return nil
+}
+
+func (sync *GroupSynchronizer) haveContentForSync() bool {
+	rpt := sync.report
+	return len(rpt.IdPUserGroupsToAdd) > 0 || len(rpt.IdPUserGroupsToUpdate) > 0 ||
+		(*flags.DeleteGroupsNotInIdPFlag && len(rpt.SinkGroupsNotInIdP) > 0)
 }
 
 func (sync *GroupSynchronizer) intersectGroups() ([]*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow) {
@@ -171,6 +182,7 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 						fmt.Printf("\t\t %s %s\n", createSign, member.Email)
 					}
 				}
+				fmt.Println()
 			}
 			return nil
 		}, "creating a group")
@@ -209,6 +221,7 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 					}
 					fmt.Printf("\t\t %s %s\n", updateSign, member.Email)
 				}
+				fmt.Println()
 			}
 			return nil
 		}, "updating group members")

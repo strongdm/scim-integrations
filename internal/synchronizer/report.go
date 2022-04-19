@@ -3,7 +3,6 @@ package synchronizer
 import (
 	"encoding/json"
 	"fmt"
-	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"time"
@@ -29,23 +28,6 @@ type Report struct {
 	SinkGroupsNotInIdP []*sink.GroupRow
 }
 
-func newReport() *Report {
-	return &Report{
-		IdPUsers:              []*source.User{},
-		IdPUsersToAdd:         []*sink.UserRow{},
-		IdPUsersInSink:        []*sink.UserRow{},
-		IdPUsersToUpdate:      []*sink.UserRow{},
-		IdPUserGroups:         []*source.UserGroup{},
-		IdPUserGroupsToAdd:    []*sink.GroupRow{},
-		IdPUserGroupsInSink:   []*sink.GroupRow{},
-		IdPUserGroupsToUpdate: []*sink.GroupRow{},
-		SinkUsers:             []*sink.UserRow{},
-		SinkGroups:            []*sink.GroupRow{},
-		SinkUsersNotInIdP:     []*sink.UserRow{},
-		SinkGroupsNotInIdP:    []*sink.GroupRow{},
-	}
-}
-
 func (rpt *Report) String() string {
 	out, err := json.MarshalIndent(rpt, "", "\t")
 	if err != nil {
@@ -57,20 +39,6 @@ func (rpt *Report) String() string {
 func (rpt *Report) short() string {
 	return fmt.Sprintf("%d IdP users, %d strongDM users in IdP, %d strongDM groups in IdP\n",
 		len(rpt.IdPUsers), len(rpt.IdPUsersInSink), len(rpt.IdPUserGroupsInSink))
-}
-
-func (rpt *Report) HaveUsersSyncContent() bool {
-	haveUsersToAdd := len(rpt.IdPUsersToAdd) > 0
-	haveUsersToUpdate := len(rpt.IdPUsersToUpdate) > 0
-	haveUsersToDelete := len(rpt.SinkUsersNotInIdP) > 0
-	return haveUsersToAdd || haveUsersToUpdate || (*flags.DeleteUsersNotInIdPFlag && haveUsersToDelete)
-}
-
-func (rpt *Report) HaveGroupsSyncContent() bool {
-	haveGroupsToAdd := len(rpt.IdPUserGroupsToAdd) > 0
-	haveGroupsToUpdate := len(rpt.IdPUserGroupsToUpdate) > 0
-	haveGroupsToDelete := len(rpt.SinkGroupsNotInIdP) > 0
-	return haveGroupsToAdd || haveGroupsToUpdate || (*flags.DeleteGroupsNotInIdPFlag && haveGroupsToDelete)
 }
 
 func (rpt *Report) showPlan() {
@@ -135,11 +103,11 @@ func (*Report) describeGroup(groupRow *sink.GroupRow, sign string, showDetails b
 
 func (*Report) describeUser(user *sink.UserRow, sign string, showDetails bool) {
 	fmt.Printf("\t %s ID: %s\n", sign, user.User.ID)
-	fmt.Printf("\t\t %s Display Name: %s %s\n", sign, user.User.GivenName, user.User.FamilyName)
 	fmt.Printf("\t\t %s User Name: %s\n", sign, user.User.UserName)
+	fmt.Printf("\t\t %s Display Name: %s %s\n", sign, user.User.GivenName, user.User.FamilyName)
 	if showDetails {
-		fmt.Printf("\t\t %s Family Name: %s\n", sign, user.User.FamilyName)
 		fmt.Printf("\t\t %s Given Name: %s\n", sign, user.User.GivenName)
+		fmt.Printf("\t\t %s Family Name: %s\n", sign, user.User.FamilyName)
 		fmt.Printf("\t\t %s Active: %v\n", sign, user.User.Active)
 		if len(user.User.GroupNames) > 0 {
 			fmt.Printf("\t\t %s Groups:\n", sign)
@@ -149,18 +117,4 @@ func (*Report) describeUser(user *sink.UserRow, sign string, showDetails bool) {
 		}
 	}
 	fmt.Println()
-}
-
-// TODO Method
-func (rpt *Report) showVerboseOutput() {
-	if *flags.VerboseFlag {
-		fmt.Printf("%d Sink Users\n", len(rpt.SinkUsers))
-		fmt.Printf("%d Sink Groups\n", len(rpt.SinkGroups))
-		fmt.Printf("%d Sink Users in IdP\n", len(rpt.IdPUsersInSink))
-		fmt.Printf("%d Sink Users not in IdP\n", len(rpt.SinkUsersNotInIdP))
-		fmt.Printf("%d Sink Users to be updated\n", len(rpt.IdPUsersToUpdate))
-		fmt.Printf("%d Sink Groups in IdP\n", len(rpt.IdPUserGroupsInSink))
-		fmt.Printf("%d Sink Groups not in IdP\n", len(rpt.SinkGroupsNotInIdP))
-		fmt.Println(rpt.String())
-	}
 }

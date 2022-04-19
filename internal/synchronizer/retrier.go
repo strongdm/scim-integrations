@@ -106,6 +106,9 @@ func (r *retrierImpl) ErrorIsUnexpected(err error) bool {
 
 func try(retrier Retrier, fn func() error, actionDescription string) func() error {
 	return func() error {
+		if !retrier.GetRateLimiter().Started() {
+			retrier.GetRateLimiter().Start()
+		}
 		limiter := retrier.GetRateLimiter()
 		limiter.VerifyLimit()
 		err := fn()

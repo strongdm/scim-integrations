@@ -37,26 +37,24 @@ $ export SDM_SCIM_TOKEN=<YOUR ADMIN TOKEN>
 
 ```
 $ go run main.go -help
+  -apply
+        apply the planned changes
   -delete-groups-missing-in-idp
         delete groups present in SDM but not in the selected Identity Provider
   -delete-users-missing-in-idp
         delete users present in SDM but not in the selected Identity Provider
   -idp string
         use Google as an IdP
-  -plan
-        do not apply changes just show initial queries
   -query string
         pass a query according to the available query syntax for the selected Identity Provider
-  -user string
-        pass the user e-mail
-  -verbose
-        show the verbose report output
+  -rate-limiter
+        synchronize the planned data with a requester rate limiter, limiting with a limit set as 1000 requests per 30 seconds
 ```
 
 - Running Google IdP:
 
 ```
-$ go run main.go -idp google -key ./key.json -user myuser@company.com
+$ go run main.go -idp google -apply
 
 Collecting data...
 
@@ -67,10 +65,10 @@ Groups to create:
 Users to create:
 
         + ID: 123456789123456789123
-                + Display Name: Rodolfo Campos
-                + Family Name: Campos
-                + Given Name: Rodolfo
                 + User Name: rodolfo+me3@strongdm.com
+                + Display Name: Rodolfo Campos
+                + Given Name: Rodolfo
+                + Family Name: Campos
                 + Active: true
                 + Groups:
                         + /engineering
@@ -78,18 +76,20 @@ Users to create:
 Groups to update:
 
          ~ ID: r-1a2b3c4d5e6f
-         ~ Display Name: /engineering
+         ~ Display Name: /support
          ~ Members:
                  ~ E-mail: rodolfo+me2@strongdm.com
 
 Users to update:
 
         ~ ID: 123456789123456789123
-                ~ Family Name: Campos
-                ~ Given Name: Rodolfo
                 ~ User Name: rodolfo+me2@strongdm.com
+                ~ Display Name: Rodolfo Campos
+                ~ Given Name: Rodolfo
+                ~ Family Name: Campos
                 ~ Active: true
-                ~ SDMID: a-uuu
+                ~ Groups:
+                        ~ /support
 
 Groups to delete:
 
@@ -98,18 +98,9 @@ Groups to delete:
 
 Users to delete:
 
-        - ID: a-xxx
-                - Display Name: User 01
-                - User Name: user+01@strongdm.com
-
-        - ID: a-yyy
-                - Display Name: User 02
-                - User Name: user+02@strongdm.com
-
         - ID: a-zzz
                 - Display Name: Rodolfo Campos
                 - User Name: rodolfo+me@strongdm.com
-
 
 Synchronizing users...
 + User created: rodolfo+me3@strongdm.com
@@ -118,19 +109,19 @@ Synchronizing users...
 
 Synchronizing groups...
 + Group created: engineering
-         + Members:
-                 + rodolfo+me3@strongdm.com
-~ Group updated: engineering
-         ~ Members:
-                 ~ rodolfo+me2@strongdm.com
+        + Members:
+                + rodolfo+me3@strongdm.com
+~ Group updated: support
+        ~ Members:
+                ~ rodolfo+me2@strongdm.com
 ~ Group deleted: Removeme
 
 Sync with google IdP finished
 ```
 
-- For verbose reporting use `-plan` to your command.
+- If you just want to see the plan without applying, run the command above without the `-apply` flag.
 
-- Currently, to not make an overhead of requests, we defined a limit of 1000 requests per 30s.
+- If you want to set a rate limiter when synchronizing the planned data, just add the `-rate-limiter` flag. The limit was defined to 1000 requests per 30s.
 
 ## Contributing
 

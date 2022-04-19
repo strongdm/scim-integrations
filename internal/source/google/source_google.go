@@ -124,7 +124,7 @@ func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.Token
 	if err != nil {
 		return nil, err
 	}
-	config.Subject = *flags.UserFlag
+	config.Subject = os.Getenv("SDM_SCIM_IDP_USER")
 
 	ts := config.TokenSource(ctx)
 	return ts, nil
