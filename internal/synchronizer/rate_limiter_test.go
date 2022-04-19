@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"scim-integrations/internal/flags"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ const mockGreaterLimit = 2
 
 func TestRateLimiter(t *testing.T) {
 	t.Run("should reset when increment counter to the limit", func(t *testing.T) {
+		*flags.RateLimiterFlag = true
 		mock := newMockRateLimiter(mockLimit, time.Now())
 		mock.Start()
 		mock.IncreaseCounter()
@@ -21,6 +23,7 @@ func TestRateLimiter(t *testing.T) {
 	})
 
 	t.Run("should not reset when increment once", func(t *testing.T) {
+		*flags.RateLimiterFlag = true
 		mock := newMockRateLimiter(mockGreaterLimit, time.Now())
 		mock.Start()
 		mock.IncreaseCounter()
@@ -30,6 +33,7 @@ func TestRateLimiter(t *testing.T) {
 	})
 
 	t.Run("should reset when the time exceeds", func(t *testing.T) {
+		*flags.RateLimiterFlag = true
 		mockTime := time.Now().Add(time.Second * -30)
 		mock := newMockRateLimiter(mockGreaterLimit, mockTime)
 		mock.Start()
