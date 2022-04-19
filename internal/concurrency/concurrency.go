@@ -10,7 +10,7 @@ import (
 
 const fileNotFoundErrMessage = "no such file"
 
-func SetupSignalHandler() {
+func SetupInterruptSignalHandler() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -21,7 +21,7 @@ func SetupSignalHandler() {
 	}()
 }
 
-func SetupRecover() {
+func SetupRecoverOnPanic() {
 	if err := recover(); err != nil {
 		RemoveLockFile()
 		panic(err)

@@ -73,10 +73,11 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 }
 
 func (s *Synchronizer) performSync(snk sink.BaseSink) error {
+	// TODO Change this flag by another named apply
 	if !*flags.PlanFlag {
-		haveUsersSyncContent := s.report.HaveUsersSyncContent()
-		haveGroupsSyncContent := s.report.HaveGroupsSyncContent()
-		s.retrier.GetRateLimiter().Start()
+		haveUsersSyncContent := s.report.HaveUsersSyncContent()   // TODO Move this to this class
+		haveGroupsSyncContent := s.report.HaveGroupsSyncContent() // TODO Move this to this class
+		s.retrier.GetRateLimiter().Start()                        // TODO Move this somewhere inside the code
 		if haveUsersSyncContent {
 			fmt.Print("Synchronizing users...\n")
 			err := s.userSynchronizer.Sync(context.Background(), snk)

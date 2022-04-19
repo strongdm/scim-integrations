@@ -28,11 +28,12 @@ func main() {
 }
 
 func start() {
+	defer concurrency.SetupRecoverOnPanic()
+	concurrency.SetupInterruptSignalHandler()
+
 	src := getSourceByFlag()
 	snc := synchronizer.NewSynchronizer()
 	snk := sdmscim.NewSinkSDMSCIM()
-	concurrency.SetupSignalHandler()
-	defer concurrency.SetupRecover()
 	err := concurrency.CreateLockFile()
 	if err != nil {
 		showErr(err)

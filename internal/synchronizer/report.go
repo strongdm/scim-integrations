@@ -151,6 +151,7 @@ func (*Report) describeUser(user *sink.UserRow, sign string, showDetails bool) {
 	fmt.Println()
 }
 
+// TODO Method
 func (rpt *Report) showVerboseOutput() {
 	if *flags.VerboseFlag {
 		fmt.Printf("%d Sink Users\n", len(rpt.SinkUsers))

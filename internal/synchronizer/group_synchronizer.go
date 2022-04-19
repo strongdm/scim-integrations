@@ -51,6 +51,7 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	return nil
 }
 
+// Calculates groups to be added, updated and deleted
 func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	if len(sync.report.SinkGroups) == 0 {
 		sdmGroups, err := snk.FetchGroups(context.Background())
@@ -59,7 +60,7 @@ func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 		}
 		sync.report.SinkGroups = sdmGroups
 	}
-	newGroups, groupsNotInIdP, existentGroups, groupsWithUpdatedData := sync.removeSDMGroupsIntersection()
+	newGroups, groupsNotInIdP, existentGroups, groupsWithUpdatedData := sync.intersectGroups()
 	sync.report.IdPUserGroupsToAdd = newGroups
 	sync.report.IdPUserGroupsToUpdate = groupsWithUpdatedData
 	sync.report.IdPUserGroupsInSink = existentGroups
@@ -67,7 +68,7 @@ func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	return nil
 }
 
-func (sync *GroupSynchronizer) removeSDMGroupsIntersection() ([]*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow) {
+func (sync *GroupSynchronizer) intersectGroups() ([]*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow) {
 	var newGroups []*sink.GroupRow
 	var missingGroups []*sink.GroupRow = sync.getMissingGroups()
 	var existentGroups []*sink.GroupRow

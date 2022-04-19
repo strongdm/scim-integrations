@@ -43,13 +43,14 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 	return nil
 }
 
+// Calculates users to be added, updated and deleted
 func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	sdmUsers, err := snk.FetchUsers(context.Background())
 	if err != nil {
 		return err
 	}
 	sync.report.SinkUsers = sdmUsers
-	newUsers, usersNotInIdP, existentUsers, usersWithUpdatedData := sync.removeSDMUsersIntersection()
+	newUsers, usersNotInIdP, existentUsers, usersWithUpdatedData := sync.intersectUsers()
 	sync.report.IdPUsersToAdd = newUsers
 	sync.report.IdPUsersInSink = existentUsers
 	sync.report.SinkUsersNotInIdP = usersNotInIdP
@@ -57,7 +58,7 @@ func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	return nil
 }
 
-func (sync *UserSynchronizer) removeSDMUsersIntersection() ([]*sink.UserRow, []*sink.UserRow, []*sink.UserRow, []*sink.UserRow) {
+func (sync *UserSynchronizer) intersectUsers() ([]*sink.UserRow, []*sink.UserRow, []*sink.UserRow, []*sink.UserRow) {
 	var newUsers []*sink.UserRow
 	var missingUsers []*sink.UserRow = sync.getMissingUsers()
 	var existentUsers []*sink.UserRow
