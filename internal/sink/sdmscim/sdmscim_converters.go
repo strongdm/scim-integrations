@@ -50,17 +50,12 @@ func groupMembersToSink(scimMembers []*scimmodels.GroupMember) []*sink.GroupMemb
 	return members
 }
 
-func sinkGroupMemberListToSDMSCIM(members []*sink.GroupMember) ([]scimmodels.GroupMember, []*sink.GroupMember) {
+func sinkGroupMembersToSDMSCIM(members []*sink.GroupMember) []scimmodels.GroupMember {
 	var sdmMembers []scimmodels.GroupMember
-	var notRegisteredMembers []*sink.GroupMember
 	for _, member := range members {
-		if member.SDMObjectID == "" {
-			notRegisteredMembers = append(notRegisteredMembers, member)
-			continue
-		}
 		sdmMembers = append(sdmMembers, sinkGroupMemberToSDMSCIM(*member))
 	}
-	return sdmMembers, notRegisteredMembers
+	return sdmMembers
 }
 
 func sinkGroupMemberToSDMSCIM(member sink.GroupMember) scimmodels.GroupMember {

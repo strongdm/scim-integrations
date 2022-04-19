@@ -94,8 +94,8 @@ func TestSDMSCIMFetchUsers(t *testing.T) {
 		users, err := mock.FetchUsers(timeoutContext)
 
 		assertT.Empty(users)
-		assertT.Nil(err)
-		assertT.Nil(timeoutContext.Err())
+		assertT.NotNil(err)
+		assertT.NotNil(timeoutContext.Err())
 		assertT.Contains(err.Error(), "deadline exceeded")
 		assertT.Contains(timeoutContext.Err().Error(), "deadline exceeded")
 	})
@@ -444,9 +444,7 @@ func mockedSCIMSDKGroupListCTXTimeoutExceeded(_ context.Context, _ *scimmodels.P
 }
 
 func mockedSCIMSDKGroupCreate(_ context.Context, _ scimmodels.CreateGroupBody) (*scimmodels.Group, error) {
-	return &scimmodels.Group{
-		// Members: ,
-	}, nil
+	return &scimmodels.Group{}, nil
 }
 
 func mockedSCIMSDKGroupCreateCTXTimeoutExceeded(_ context.Context, _ scimmodels.CreateGroupBody) (*scimmodels.Group, error) {

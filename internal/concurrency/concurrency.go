@@ -21,6 +21,13 @@ func SetupSignalHandler() {
 	}()
 }
 
+func SetupRecover() {
+	if err := recover(); err != nil {
+		RemoveLockFile()
+		panic(err)
+	}
+}
+
 func CreateLockFile() error {
 	filename := GetLockFileName()
 	info, err := os.Stat(filename)

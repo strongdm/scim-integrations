@@ -30,8 +30,9 @@ func main() {
 func start() {
 	src := getSourceByFlag()
 	snc := synchronizer.NewSynchronizer()
-	snk := sdmscim.NewSinkSDMSCIMImpl()
+	snk := sdmscim.NewSinkSDMSCIM()
 	concurrency.SetupSignalHandler()
+	defer concurrency.SetupRecover()
 	err := concurrency.CreateLockFile()
 	if err != nil {
 		showErr(err)

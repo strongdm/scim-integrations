@@ -23,7 +23,6 @@ type User struct {
 	FamilyName  string
 	Active      bool
 	GroupNames  []string
-	SinkID      string
 }
 
 type UserRow struct {

@@ -2,6 +2,7 @@ package sdmscim
 
 import (
 	"context"
+
 	"github.com/strongdm/scimsdk"
 	scimmodels "github.com/strongdm/scimsdk/models"
 )
@@ -183,8 +184,8 @@ func getProvidedURL() string {
 	return ""
 }
 
-func NewMockSDMSCIM(groupModule scimsdk.GroupModule, userModule scimsdk.UserModule) *SinkSDMSCIMImpl {
+func NewMockSDMSCIM(groupModule scimsdk.GroupModule, userModule scimsdk.UserModule) *sinkSDMSCIMImpl {
 	mockClient := NewMockSDMSCIMClient(groupModule, userModule)
-	mock := SinkSDMSCIMImpl{mockClient}
+	mock := sinkSDMSCIMImpl{mockClient}
 	return &mock
 }
