@@ -57,8 +57,8 @@ func showErr(err error) {
 func validateEnvironment() error {
 	if os.Getenv("SDM_SCIM_TOKEN") == "" {
 		return errors.New("you must set the SDM_SCIM_TOKEN env var")
-	} else if os.Getenv("SDM_SCIM_IDP_KEY") == "" {
-		return errors.New("you must set the SDM_SCIM_IDP_KEY env var")
+	} else if os.Getenv("SDM_SCIM_IDP_KEY_PATH") == "" {
+		return errors.New("you must set the SDM_SCIM_IDP_KEY_PATH env var")
 	} else if os.Getenv("SDM_SCIM_IDP_USER") == "" {
 		return errors.New("you must set the SDM_SCIM_IDP_USER env var")
 	}

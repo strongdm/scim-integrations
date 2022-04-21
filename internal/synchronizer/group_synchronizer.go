@@ -29,7 +29,7 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	if !sync.haveContentForSync() {
 		return nil
 	}
-	fmt.Println("\nSynchronizing groups...")
+	fmt.Println("Synchronizing groups...")
 	sync.retrier.setEntityScope(GroupScope)
 	err := sync.EnrichReport(snk)
 	if err != nil {

@@ -1,0 +1,7 @@
+version: "3.9"
+services:
+  scim-integrations:
+    build: .
+    volumes:
+      # Instead of ~/ specify the path of your idp-key.json
+      - /path/to/your/idp-key/folder:/scim/keys/

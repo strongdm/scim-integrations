@@ -52,7 +52,7 @@ To use Google Directory as an IdP, you must perform the following steps:
 
 And your Service Account is configured. Now you need to set the following environment variables:
 
-- `SDM_SCIM_IDP_KEY` - the path of the service account key file
+- `SDM_SCIM_IDP_KEY_PATH` - the path of the service account key file
 - `SDM_SCIM_IDP_USER` - the service account admin email
 
 **An user can only be assigned to one OrgUnit at a time**

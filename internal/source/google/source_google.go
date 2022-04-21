@@ -116,7 +116,7 @@ func (g *sourceGoogleImpl) GetGoogleAdminService(ctx context.Context) (*admin.Se
 }
 
 func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
-	jsonCredentials, err := os.ReadFile(os.Getenv("SDM_SCIM_IDP_KEY"))
+	jsonCredentials, err := os.ReadFile(os.Getenv("SDM_SCIM_IDP_KEY_PATH"))
 	if err != nil {
 		return nil, errors.New("Unable to read service account key file: " + err.Error())
 	}
