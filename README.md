@@ -135,6 +135,8 @@ When running with docker, you need to follow these steps:
 - Go to [docker-compose.yml](docker-compose.yml) and in the `scim-integrations` service refer the folder containing the `idp-key.json` file in the volume source (`/path/to/your/idp-key/folder:/scim/keys`)
 - Then you can run `docker-compose up`
 
+**NOTE**: the project was designed to handle orgs with max of 100,000 users and ~50 groups. If your use case is above this numbers, please reach out to support.
+
 ## Contributing
 
 Refer to the [contributing](CONTRIBUTING.md) guidelines or dump part of the information here.
