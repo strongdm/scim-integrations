@@ -12,7 +12,7 @@ RUN GOOS=linux GOARCH=amd64 /usr/local/go/bin/go build -o scim .
 RUN rm -r main.go internal/ go.mod go.sum
 
 # final stage
-FROM --platform=linux/amd64 alpine:latest AS RUNNER
+FROM alpine:latest AS RUNNER
 
 WORKDIR /scim-integrations
 
