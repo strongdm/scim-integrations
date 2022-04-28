@@ -43,12 +43,12 @@ $ go run main.go -help
         delete groups present in SDM but not in the selected Identity Provider
   -delete-users-missing-in-idp
         delete users present in SDM but not in the selected Identity Provider
+  -enable-rate-limiter
+        synchronize the planned data with a requester rate limiter, limiting with a limit set as 1000 requests per 30 seconds
   -idp string
         use Google as an IdP
   -query string
         pass a query according to the available query syntax for the selected Identity Provider
-  -rate-limiter
-        synchronize the planned data with a requester rate limiter, limiting with a limit set as 1000 requests per 30 seconds
 ```
 
 - Running Google IdP:
@@ -121,7 +121,21 @@ Sync with google IdP finished
 
 - If you just want to see the plan without applying, run the command above without the `-apply` flag.
 
-- If you want to set a rate limiter when synchronizing the planned data, just add the `-rate-limiter` flag. The limit was defined to 1000 requests per 30s.
+- If you want to set a rate limiter when synchronizing the planned data, just add the `-enable-rate-limiter` flag. The limit was defined to 1000 requests per 30s.
+
+## Running with Docker
+
+When running with docker, you need to follow these steps:
+
+- Create a file called `env-file` using the content of the `env-file.example` file and fill the following variables:
+  - `SDM_SCIM_TOKEN` - SDM SCIM Token
+  - `SDM_SCIM_IDP` - defines the IdP that you want to synchronize
+  - `SDM_SCIM_IDP_USER` (should be configured following the documentation of the selected IdP)
+- Set the name of your key file (the key used in the `SDM_SCIM_IDP_KEY_PATH` env var) as `idp-key.json`. If it's not titled `idp-key.json` it won't work
+- Go to [docker-compose.yml](docker-compose.yml) and in the `scim-integrations` service refer the folder containing the `idp-key.json` file in the volume source (`/path/to/your/idp-key/folder:/scim/keys`)
+- Then you can run `docker-compose up`
+
+**NOTE**: the project was designed to handle orgs with max of 100,000 users and ~50 groups. If your use case is above this numbers, please reach out to support.
 
 ## Contributing
 

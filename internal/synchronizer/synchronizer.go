@@ -38,6 +38,8 @@ func NewSynchronizer() *Synchronizer {
 
 // Run collect the source data and synchronize it with the sink
 func (s *Synchronizer) Run(src source.BaseSource, snk sink.BaseSink) error {
+	s.report.Start = time.Now()
+	fmt.Println("Starting at", s.report.Start.String())
 	fmt.Println("Collecting data...")
 	err := s.fillReport(src, snk)
 	if err != nil {
@@ -53,7 +55,6 @@ func (s *Synchronizer) Run(src source.BaseSource, snk sink.BaseSink) error {
 }
 
 func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) error {
-	s.report.Start = time.Now()
 	sourceUsers, err := src.FetchUsers(context.Background())
 	if err != nil {
 		return err
@@ -82,7 +83,8 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 		if err != nil {
 			return err
 		}
+		s.report.Complete = time.Now()
+		fmt.Println("Sync process completed at", s.report.Complete.String())
 	}
-	s.report.Complete = time.Now()
 	return nil
 }
