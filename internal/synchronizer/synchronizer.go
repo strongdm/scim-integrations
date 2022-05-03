@@ -3,9 +3,12 @@ package synchronizer
 import (
 	"context"
 	"fmt"
+	"os"
 	"scim-integrations/internal/flags"
+	"scim-integrations/internal/repository"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
+	"strings"
 	"time"
 )
 
@@ -85,6 +88,17 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 		}
 		s.report.Complete = time.Now()
 		fmt.Println("Sync process completed at", s.report.Complete.String())
+		if isDockerized() {
+			_, err := repository.NewReportRepository().Insert(*reportToRepositoryReportsRow(s.report))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "An error occurred when caching a report:", err.Error())
+			}
+		}
 	}
 	return nil
+}
+
+func isDockerized() bool {
+	dockerizedEnv := strings.ToLower(os.Getenv("DOCKERIZED"))
+	return dockerizedEnv == "true"
 }

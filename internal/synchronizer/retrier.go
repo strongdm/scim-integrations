@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"scim-integrations/internal/repository"
 	"strings"
 
 	"github.com/cenkalti/backoff/v4"
@@ -105,6 +106,7 @@ func (r *retrierImpl) ErrorIsUnexpected(err error) bool {
 }
 
 func try(retrier Retrier, fn func() error, actionDescription string) func() error {
+	repository := repository.NewErrorsRepository()
 	return func() error {
 		if !retrier.GetRateLimiter().Started() {
 			retrier.GetRateLimiter().Start()
@@ -115,14 +117,23 @@ func try(retrier Retrier, fn func() error, actionDescription string) func() erro
 		limiter.IncreaseCounter()
 		if err != nil {
 			if !retrier.ErrorIsUnexpected(err) {
+				_, repoErr := repository.Insert(*errorToRepositoryErrorRow(err))
+				if repoErr != nil {
+					fmt.Fprintln(os.Stderr, "An error occurred when caching an error:", err.Error())
+				}
 				fmt.Fprintln(os.Stderr, err)
 				return nil
 			}
 			retrier.IncreaseCounter()
 			if retrier.ExceededLimit() {
-				return errors.New("retry limit exceeded with the following error: " + err.Error())
+				err = errors.New("retry limit exceeded with the following error: " + err.Error())
+			} else {
+				fmt.Fprintf(os.Stderr, "Failed %s. Retrying the operation for the %dst time\n", actionDescription, retrier.GetCounter())
 			}
-			fmt.Fprintf(os.Stderr, "Failed %s. Retrying the operation for the %dst time\n", actionDescription, retrier.GetCounter())
+			_, repoErr := repository.Insert(*errorToRepositoryErrorRow(err))
+			if repoErr != nil {
+				fmt.Fprintln(os.Stderr, "An error occurred when caching an error:", err.Error())
+			}
 			return err
 		}
 		return nil
