@@ -67,7 +67,7 @@ func createTableQuery(table *table) string {
 }
 
 func getConnection() (*sql.DB, error) {
-	conn, err := sql.Open("sqlite3", "./cache.db")
+	conn, err := sql.Open("sqlite3", "/cache.db")
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +79,7 @@ func execQuery(query string, args ...interface{}) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -93,6 +94,7 @@ func exec(query string, args ...interface{}) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 	result, err := conn.Exec(query, args...)
 	if err != nil {
 		return nil, err

@@ -13,19 +13,26 @@ type Report struct {
 	Complete time.Time
 
 	IdPUsers         []*source.User
-	IdPUsersToAdd    []*sink.UserRow
+	IdPUsersToCreate []*sink.UserRow
 	IdPUsersInSink   []*sink.UserRow
 	IdPUsersToUpdate []*sink.UserRow
 
-	IdPUserGroups         []*source.UserGroup
-	IdPUserGroupsToAdd    []*sink.GroupRow
-	IdPUserGroupsInSink   []*sink.GroupRow
-	IdPUserGroupsToUpdate []*sink.GroupRow
+	IdPGroups         []*source.UserGroup
+	IdPGroupsToCreate []*sink.GroupRow
+	IdPGroupsInSink   []*sink.GroupRow
+	IdPGroupsToUpdate []*sink.GroupRow
 
 	SinkUsers          []*sink.UserRow
 	SinkGroups         []*sink.GroupRow
 	SinkUsersNotInIdP  []*sink.UserRow
 	SinkGroupsNotInIdP []*sink.GroupRow
+
+	UsersToCreateCount  int
+	UsersToUpdateCount  int
+	UsersToDeleteCount  int
+	GroupsToCreateCount int
+	GroupsToUpdateCount int
+	GroupsToDeleteCount int
 }
 
 func (rpt *Report) String() string {
@@ -38,7 +45,7 @@ func (rpt *Report) String() string {
 
 func (rpt *Report) short() string {
 	return fmt.Sprintf("%d IdP users, %d strongDM users in IdP, %d strongDM groups in IdP\n",
-		len(rpt.IdPUsers), len(rpt.IdPUsersInSink), len(rpt.IdPUserGroupsInSink))
+		len(rpt.IdPUsers), len(rpt.IdPUsersInSink), len(rpt.IdPGroupsInSink))
 }
 
 func (rpt *Report) showPlan() {
@@ -48,20 +55,20 @@ func (rpt *Report) showPlan() {
 }
 
 func (rpt *Report) showEntitiesToBeCreated() {
-	if len(rpt.IdPUserGroupsToAdd) > 0 {
+	if len(rpt.IdPGroupsToCreate) > 0 {
 		fmt.Print(colorGreen, "Groups to create:\n\n", colorReset)
-		showItems(rpt.IdPUserGroupsToAdd, createSign, false, rpt.describeGroup)
+		showItems(rpt.IdPGroupsToCreate, createSign, false, rpt.describeGroup)
 	}
-	if len(rpt.IdPUsersToAdd) > 0 {
+	if len(rpt.IdPUsersToCreate) > 0 {
 		fmt.Print(colorGreen, "Users to create:\n\n", colorReset)
-		showItems(rpt.IdPUsersToAdd, createSign, true, rpt.describeUser)
+		showItems(rpt.IdPUsersToCreate, createSign, true, rpt.describeUser)
 	}
 }
 
 func (rpt *Report) showEntitiesToBeUpdated() {
-	if len(rpt.IdPUserGroupsToUpdate) > 0 {
+	if len(rpt.IdPGroupsToUpdate) > 0 {
 		fmt.Print(colorYellow, "Groups to update:\n\n", colorReset)
-		showItems(rpt.IdPUserGroupsToUpdate, updateSign, true, rpt.describeGroup)
+		showItems(rpt.IdPGroupsToUpdate, updateSign, true, rpt.describeGroup)
 	}
 	if len(rpt.IdPUsersToUpdate) > 0 {
 		fmt.Print(colorYellow, "Users to update:\n\n", colorReset)

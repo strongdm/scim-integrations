@@ -64,15 +64,21 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 	}
 	sourceGroups := src.ExtractGroupsFromUsers(sourceUsers)
 	s.report.IdPUsers = sourceUsers
-	s.report.IdPUserGroups = sourceGroups
+	s.report.IdPGroups = sourceGroups
 	err = s.userSynchronizer.EnrichReport(snk)
 	if err != nil {
 		return err
 	}
+	s.report.UsersToCreateCount = len(s.report.IdPUsersToCreate)
+	s.report.UsersToUpdateCount = len(s.report.IdPUsersToUpdate)
+	s.report.UsersToDeleteCount = len(s.report.SinkUsersNotInIdP)
 	err = s.groupSynchronizer.EnrichReport(snk)
 	if err != nil {
 		return err
 	}
+	s.report.GroupsToCreateCount = len(s.report.IdPGroupsToCreate)
+	s.report.GroupsToUpdateCount = len(s.report.IdPGroupsToUpdate)
+	s.report.GroupsToDeleteCount = len(s.report.SinkGroupsNotInIdP)
 	return nil
 }
 

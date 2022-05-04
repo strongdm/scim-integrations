@@ -31,12 +31,12 @@ func reportToRepositoryReportsRow(report *Report) *repository.ReportsRow {
 	return &repository.ReportsRow{
 		StartedAt:           report.Start,
 		CompletedAt:         report.Complete,
-		UsersToCreateCount:  len(report.IdPUsersToAdd),
-		UsersToUpdateCount:  len(report.IdPUsersToUpdate),
-		UsersToDeleteCount:  len(report.SinkUsersNotInIdP),
-		GroupsToCreateCount: len(report.IdPUserGroupsToAdd),
-		GroupsToUpdateCount: len(report.IdPUserGroupsToUpdate),
-		GroupsToDeleteCount: len(report.SinkGroupsNotInIdP),
+		UsersToCreateCount:  report.UsersToCreateCount,
+		UsersToUpdateCount:  report.UsersToUpdateCount,
+		UsersToDeleteCount:  report.UsersToDeleteCount,
+		GroupsToCreateCount: report.GroupsToCreateCount,
+		GroupsToUpdateCount: report.GroupsToUpdateCount,
+		GroupsToDeleteCount: report.GroupsToDeleteCount,
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 type ReportRepository interface {
-	Select(*query.SelectFilter) ([]ReportsRow, error)
+	Select(*query.SelectFilter) ([]*ReportsRow, error)
 	Insert(ReportsRow) (int64, error)
 }
 
@@ -16,7 +16,7 @@ func NewReportRepository() ReportRepository {
 	return &reportRepositoryImpl{}
 }
 
-func (repo *reportRepositoryImpl) Select(filter *query.SelectFilter) ([]ReportsRow, error) {
+func (repo *reportRepositoryImpl) Select(filter *query.SelectFilter) ([]*ReportsRow, error) {
 	rows, err := execQuery(query.NewReportQuery().Select(filter))
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func (repo *reportRepositoryImpl) Select(filter *query.SelectFilter) ([]ReportsR
 	return repo.reportsFromSQLRows(rows)
 }
 
-func (*reportRepositoryImpl) Insert(report ReportsRow) (int64, error) {
+func (r *reportRepositoryImpl) Insert(report ReportsRow) (int64, error) {
 	result, err := exec(
 		query.NewReportQuery().Insert(),
 		report.StartedAt,
@@ -46,10 +46,10 @@ func (*reportRepositoryImpl) Insert(report ReportsRow) (int64, error) {
 	return lastInsertedID, nil
 }
 
-func (*reportRepositoryImpl) reportsFromSQLRows(rows *sql.Rows) ([]ReportsRow, error) {
-	var reports []ReportsRow
+func (*reportRepositoryImpl) reportsFromSQLRows(rows *sql.Rows) ([]*ReportsRow, error) {
+	var reports []*ReportsRow
 	for rows.Next() {
-		report := ReportsRow{}
+		report := &ReportsRow{}
 		err := rows.Scan(
 			&report.ID,
 			&report.StartedAt,
@@ -64,7 +64,11 @@ func (*reportRepositoryImpl) reportsFromSQLRows(rows *sql.Rows) ([]ReportsRow, e
 		if err != nil {
 			return nil, err
 		}
-		reports = append(reports)
+		reports = append(reports, report)
+	}
+	err := rows.Err()
+	if err != nil {
+		return nil, err
 	}
 	return reports, nil
 }

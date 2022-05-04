@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"scim-integrations/internal/repository"
+	"scim-integrations/internal/repository/query"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -76,7 +77,7 @@ func iterateMetrics() {
 }
 
 func loadReport() {
-	reports, err := repository.NewReportRepository().Select(nil)
+	reports, err := repository.NewReportRepository().Select(&query.SelectFilter{Limit: 1, OrderBy: "id desc"})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "An error occurred when collecting report metrics:", err.Error())
 		return
@@ -86,11 +87,11 @@ func loadReport() {
 	}
 	report := reports[0]
 	usersToCreateGauge.Set(float64(report.UsersToCreateCount))
-	usersToCreateGauge.Set(float64(report.UsersToUpdateCount))
-	usersToCreateGauge.Set(float64(report.UsersToDeleteCount))
-	usersToCreateGauge.Set(float64(report.GroupsToCreateCount))
-	usersToCreateGauge.Set(float64(report.GroupsToUpdateCount))
-	usersToCreateGauge.Set(float64(report.GroupsToDeleteCount))
+	usersToUpdateGauge.Set(float64(report.UsersToUpdateCount))
+	usersToDeleteGauge.Set(float64(report.UsersToDeleteCount))
+	groupsToCreateGauge.Set(float64(report.GroupsToCreateCount))
+	groupsToUpdateGauge.Set(float64(report.GroupsToUpdateCount))
+	groupsToDeleteGauge.Set(float64(report.GroupsToDeleteCount))
 }
 
 func loadErr() {

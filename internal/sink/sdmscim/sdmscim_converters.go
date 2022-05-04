@@ -20,7 +20,7 @@ func usersWithGroupsToSink(iterator scimmodels.Iterator[scimmodels.User], userGr
 	return result, nil
 }
 
-func userToSink(response *scimmodels.User, userGroups []*sink.GroupRow) *sink.UserRow {
+func userToSink(response *scimmodels.User, groups []*sink.GroupRow) *sink.UserRow {
 	return &sink.UserRow{
 		User: &sink.User{
 			ID:          response.ID,
@@ -30,7 +30,7 @@ func userToSink(response *scimmodels.User, userGroups []*sink.GroupRow) *sink.Us
 			FamilyName:  response.Name.FamilyName,
 			Active:      response.Active,
 		},
-		Groups: userGroups,
+		Groups: groups,
 	}
 }
 

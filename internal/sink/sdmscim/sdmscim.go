@@ -119,17 +119,17 @@ func (s *sinkSDMSCIMImpl) DeleteGroup(ctx context.Context, group *sink.GroupRow)
 }
 
 func separateGroupsByUser(groups []*sink.GroupRow) map[string][]*sink.GroupRow {
-	userGroups := map[string][]*sink.GroupRow{}
+	groupRows := map[string][]*sink.GroupRow{}
 	for _, group := range groups {
 		for _, member := range group.Members {
-			if userGroups[member.ID] == nil {
-				userGroups[member.ID] = []*sink.GroupRow{group}
+			if groupRows[member.ID] == nil {
+				groupRows[member.ID] = []*sink.GroupRow{group}
 			} else {
-				userGroups[member.ID] = append(userGroups[member.ID], group)
+				groupRows[member.ID] = append(groupRows[member.ID], group)
 			}
 		}
 	}
-	return userGroups
+	return groupRows
 }
 
 func formatGroupName(orgUnitPath string) string {

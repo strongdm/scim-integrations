@@ -27,7 +27,7 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 	}
 	fmt.Println("Synchronizing users...")
 	sync.retrier.setEntityScope(UserScope)
-	err := sync.createUsers(ctx, snk, sync.report.IdPUsersToAdd)
+	err := sync.createUsers(ctx, snk, sync.report.IdPUsersToCreate)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 	}
 	sync.report.SinkUsers = sdmUsers
 	newUsers, usersNotInIdP, existentUsers, usersWithUpdatedData := sync.intersectUsers()
-	sync.report.IdPUsersToAdd = newUsers
+	sync.report.IdPUsersToCreate = newUsers
 	sync.report.IdPUsersInSink = existentUsers
 	sync.report.SinkUsersNotInIdP = usersNotInIdP
 	sync.report.IdPUsersToUpdate = usersWithUpdatedData
@@ -66,7 +66,7 @@ func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 
 func (sync *UserSynchronizer) haveContentForSync() bool {
 	rpt := sync.report
-	return len(rpt.IdPUsersToAdd) > 0 || len(rpt.IdPUsersToUpdate) > 0 ||
+	return len(rpt.IdPUsersToCreate) > 0 || len(rpt.IdPUsersToUpdate) > 0 ||
 		(*flags.DeleteUsersNotInIdPFlag && len(rpt.SinkUsersNotInIdP) > 0)
 }
 
