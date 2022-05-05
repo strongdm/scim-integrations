@@ -29,7 +29,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer() *Synchronizer {
-	report := &Report{}
+	report := NewReport()
 	retrier := newRetrier(newRateLimiter())
 	return &Synchronizer{
 		report:            report,
@@ -69,16 +69,10 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 	if err != nil {
 		return err
 	}
-	s.report.UsersToCreateCount = len(s.report.IdPUsersToCreate)
-	s.report.UsersToUpdateCount = len(s.report.IdPUsersToUpdate)
-	s.report.UsersToDeleteCount = len(s.report.SinkUsersNotInIdP)
 	err = s.groupSynchronizer.EnrichReport(snk)
 	if err != nil {
 		return err
 	}
-	s.report.GroupsToCreateCount = len(s.report.IdPGroupsToCreate)
-	s.report.GroupsToUpdateCount = len(s.report.IdPGroupsToUpdate)
-	s.report.GroupsToDeleteCount = len(s.report.SinkGroupsNotInIdP)
 	return nil
 }
 
@@ -92,7 +86,7 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 		if err != nil {
 			return err
 		}
-		s.report.Complete = time.Now()
+		s.report.Succeeded()
 		fmt.Println("Sync process completed at", s.report.Complete.String())
 		if isDockerized() {
 			_, err := repository.NewReportRepository().Insert(*reportToRepositoryReportsRow(s.report))

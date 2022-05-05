@@ -27,12 +27,8 @@ var (
 			users_deleted integer,
 			groups_created integer,
 			groups_updated integer,
-			groups_deleted integer
-		`},
-		{errorsTable, `
-			id integer primary key autoincrement,
-			occurred_time timestamp,
-			error timestamp
+			groups_deleted integer,
+			status integer
 		`},
 	}
 )

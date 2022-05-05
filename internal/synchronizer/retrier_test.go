@@ -26,7 +26,7 @@ func TestRetrier(t *testing.T) {
 
 	t.Run("should try once when return an expected error", func(t *testing.T) {
 		mock := newMockCounter()
-		mock.On("count").Return(errors.New(expectedErrMsg)).Once()
+		mock.On("count").Return(errors.New(expectedErrMsg))
 		retrier := newRetrier(newRateLimiter())
 
 		err := retrier.Run(mock.count, "test")
@@ -38,16 +38,27 @@ func TestRetrier(t *testing.T) {
 	t.Run("should try twice when in the first time return an unexpected error and then return nil", func(t *testing.T) {
 		mock := newMockCounter()
 		retrier := newRetrier(getExceededRateLimiter())
-		mock.On("count").Return(errors.New(unexpectedErrMsg)).Once()
+		mock.On("count").Return(errors.New(unexpectedErrMsg)).Times(5)
+
+		err := retrier.Run(mock.count, "test")
+
+		assert.Equal(t, 5, len(mock.Calls))
+		assert.NotNil(t, err)
+	})
+
+	t.Run("should try twice when in the first time return an unexpected error and then return nil", func(t *testing.T) {
+		mock := newMockCounter()
+		retrier := newRetrier(getExceededRateLimiter())
+		mock.On("count").Return(errors.New(expectedErrMsg)).Once()
 		mock.On("count").Return(nil).Once()
 
 		err := retrier.Run(mock.count, "test")
 
-		assert.Equal(t, 2, len(mock.Calls))
+		assert.Equal(t, 1, len(mock.Calls))
 		assert.Nil(t, err)
 	})
 
-	t.Run("should exceeds the retry limiy when return an unexpected error 4 times", func(t *testing.T) {
+	t.Run("should exceeds the retry limiy when return an unexpected error 5 times", func(t *testing.T) {
 		retrier := newRetrier(getExceededRateLimiter())
 		mock := newMockCounter()
 		mock.On("count").Return(errors.New(unexpectedErrMsg)).Times(5)

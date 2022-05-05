@@ -17,42 +17,46 @@ import (
 const intervalSeconds = 60
 
 var (
-	listenCommand = &command{
-		Name: "listen",
-		Exec: listen,
+	exposeMetricsCommand = &command{
+		Name: "expose-metrics",
+		Exec: exposeMetrics,
 	}
-	metricsPort        = 2112
-	usersToCreateGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_users_to_create_count",
+	metricsPort       = 2112
+	createdUsersGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_created_users_count",
 		Help: "Count of Users prepared to be created in SDM",
 	})
-	usersToUpdateGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_users_to_update_count",
+	updatedUsersGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_updated_users_count",
 		Help: "Count of Users prepared to be updated in SDM",
 	})
-	usersToDeleteGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_users_to_delete_count",
+	deletedUsersGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_deleted_users_count",
 		Help: "Count of Users prepared to be deleted in SDM",
 	})
-	groupsToCreateGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_groups_to_create_count",
+	createdGroupsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_created_groups_count",
 		Help: "Count of Groups prepared to be created in SDM",
 	})
-	groupsToUpdateGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_groups_to_update_count",
+	updatedGroupsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_updated_groups_count",
 		Help: "Count of Groups prepared to be updated in SDM",
 	})
-	groupsToDeleteGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_groups_to_delete_count",
+	deletedGroupsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_deleted_groups_count",
 		Help: "Count of Groups prepared to be deleted in SDM",
 	})
-	errorsGauge = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "scim_integrations_errors_count",
+	lastRunSucceededGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_last_execution_succeeded",
+		Help: "Last execution succeeded status",
+	})
+	consecutiveErrorsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "scim_integrations_total_consecutive_errors_count",
 		Help: "Count of errors occurred during the synchronizing process",
 	})
 )
 
-func listen() error {
+func exposeMetrics() error {
 	http.Handle("/metrics", promhttp.Handler())
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", metricsPort))
 	if err != nil {
@@ -70,14 +74,13 @@ func iterateMetrics() {
 	go func() {
 		for {
 			loadReport()
-			loadErr()
 			time.Sleep(time.Second * intervalSeconds)
 		}
 	}()
 }
 
 func loadReport() {
-	reports, err := repository.NewReportRepository().Select(&query.SelectFilter{Limit: 1, OrderBy: "id desc"})
+	reports, err := repository.NewReportRepository().Select(&query.SelectFilter{OrderBy: "id desc"})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "An error occurred when collecting report metrics:", err.Error())
 		return
@@ -86,19 +89,23 @@ func loadReport() {
 		return
 	}
 	report := reports[0]
-	usersToCreateGauge.Set(float64(report.UsersToCreateCount))
-	usersToUpdateGauge.Set(float64(report.UsersToUpdateCount))
-	usersToDeleteGauge.Set(float64(report.UsersToDeleteCount))
-	groupsToCreateGauge.Set(float64(report.GroupsToCreateCount))
-	groupsToUpdateGauge.Set(float64(report.GroupsToUpdateCount))
-	groupsToDeleteGauge.Set(float64(report.GroupsToDeleteCount))
+	createdUsersGauge.Set(float64(report.CreatedUsersCount))
+	updatedUsersGauge.Set(float64(report.UpdatedUsersCount))
+	deletedUsersGauge.Set(float64(report.DeletedUsersCount))
+	createdGroupsGauge.Set(float64(report.CreatedGroupsCount))
+	updatedGroupsGauge.Set(float64(report.UpdatedGroupsCount))
+	deletedGroupsGauge.Set(float64(report.DeletedGroupsCount))
+	lastRunSucceededGauge.Set(float64(report.Succeed))
+	consecutiveErrorsGauge.Set(float64(getConsecutiveErrorsCount(reports)))
 }
 
-func loadErr() {
-	errors, err := repository.NewErrorsRepository().Select(nil)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "An error occurred when collecting error metrics:", err.Error())
-		return
+func getConsecutiveErrorsCount(reports []*repository.ReportsRow) int {
+	var count int
+	for _, report := range reports {
+		if report.Succeed == 0 {
+			break
+		}
+		count++
 	}
-	errorsGauge.Set(float64(len(errors)))
+	return count
 }

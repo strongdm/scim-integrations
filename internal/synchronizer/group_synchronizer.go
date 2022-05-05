@@ -35,7 +35,8 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	if err != nil {
 		return err
 	}
-	err = sync.createGroups(ctx, snk, sync.report.IdPGroupsToCreate)
+	createdGroupsCount, err := sync.createGroups(ctx, snk, sync.report.IdPGroupsToCreate)
+	sync.report.CreatedGroupsCount = createdGroupsCount
 	if err != nil {
 		return err
 	}
@@ -43,12 +44,14 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	if err != nil {
 		return err
 	}
-	err = sync.updateGroupMembers(ctx, snk)
+	updatedGroupsCount, err := sync.updateGroupMembers(ctx, snk)
+	sync.report.UpdatedGroupsCount = updatedGroupsCount
 	if err != nil {
 		return err
 	}
 	if *flags.DeleteGroupsNotInIdPFlag {
-		err = sync.deleteMissingGroups(ctx, snk)
+		deletedGroupsCount, err := sync.deleteMissingGroups(ctx, snk)
+		sync.report.DeletedGroupsCount = deletedGroupsCount
 		if err != nil {
 			return err
 		}
@@ -163,7 +166,8 @@ func (sync *GroupSynchronizer) enrichGroupMembers() {
 	}
 }
 
-func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*sink.GroupRow) error {
+func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*sink.GroupRow) (int, error) {
+	var successCount int
 	for _, group := range sinkGroups {
 		err := sync.retrier.Run(func() error {
 			members, notRegisteredMembers := getValidAndUnregisteredMembers(group)
@@ -183,17 +187,19 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 					}
 				}
 				fmt.Println()
+				successCount++
 			}
 			return nil
 		}, "creating a group")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
-func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) error {
+func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) (int, error) {
+	var successCount int
 	for _, group := range sync.report.IdPGroupsToUpdate {
 		err := sync.retrier.Run(func() error {
 			members, notRegisteredMembers := getValidAndUnregisteredMembers(group)
@@ -223,16 +229,18 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 				}
 				fmt.Println()
 			}
+			successCount++
 			return nil
 		}, "updating group members")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
-func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink.BaseSink) error {
+func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink.BaseSink) (int, error) {
+	var successCount int
 	for _, group := range sync.report.SinkGroupsNotInIdP {
 		err := sync.retrier.Run(func() error {
 			err := snk.DeleteGroup(ctx, group)
@@ -240,13 +248,14 @@ func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink
 				return err
 			}
 			fmt.Println(deleteSign, "Group deleted:", group.DisplayName)
+			successCount++
 			return nil
 		}, "deleting a group")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
 func (sync *GroupSynchronizer) hasNewMembers(name string, members []*sink.GroupMember) bool {

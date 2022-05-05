@@ -14,7 +14,7 @@ type command struct {
 }
 
 var (
-	commands  = map[string]*command{listenCommand.Name: listenCommand}
+	commands  = map[string]*command{exposeMetricsCommand.Name: exposeMetricsCommand}
 	boolFlags = []string{
 		"apply",
 		"enable-rate-limiter",

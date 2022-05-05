@@ -17,12 +17,6 @@ services:
       - 9090:9090
     networks:
       - scim-integrations
-  node_exporter:
-    image: prom/node-exporter
-    ports:
-      - 9100:9100
-    networks:
-      - scim-integrations
   grafana:
     build: tools/grafana
     ports:

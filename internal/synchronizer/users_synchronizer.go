@@ -27,7 +27,8 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 	}
 	fmt.Println("Synchronizing users...")
 	sync.retrier.setEntityScope(UserScope)
-	err := sync.createUsers(ctx, snk, sync.report.IdPUsersToCreate)
+	createdUsersCount, err := sync.createUsers(ctx, snk, sync.report.IdPUsersToCreate)
+	sync.report.CreatedUsersCount = createdUsersCount
 	if err != nil {
 		return err
 	}
@@ -35,12 +36,14 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 	if err != nil {
 		return err
 	}
-	err = sync.updateUsers(ctx, snk, sync.report.IdPUsersToUpdate)
+	updatedUsersCount, err := sync.updateUsers(ctx, snk, sync.report.IdPUsersToUpdate)
+	sync.report.UpdatedUsersCount = updatedUsersCount
 	if err != nil {
 		return err
 	}
 	if *flags.DeleteUsersNotInIdPFlag {
-		err = sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
+		deletedUsersCount, err := sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
+		sync.report.DeletedUsersCount = deletedUsersCount
 		if err != nil {
 			return err
 		}
@@ -120,7 +123,8 @@ func (sync *UserSynchronizer) getMissingUsers() []*sink.UserRow {
 	return missingUsers
 }
 
-func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
+func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) (int, error) {
+	var successCount int
 	for _, sdmUser := range sdmUsers {
 		err := sync.retrier.Run(func() error {
 			sdmUserResponse, err := snk.CreateUser(ctx, sdmUser)
@@ -128,16 +132,18 @@ func (sync *UserSynchronizer) createUsers(ctx context.Context, snk sink.BaseSink
 				return err
 			}
 			fmt.Println(createSign, "User created:", sdmUserResponse.User.UserName)
+			successCount++
 			return nil
 		}, "creating an user")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
-func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) error {
+func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink, sdmUsers []*sink.UserRow) (int, error) {
+	var successCount int
 	for _, sdmUser := range sdmUsers {
 		err := sync.retrier.Run(func() error {
 			err := snk.ReplaceUser(ctx, *sdmUser)
@@ -145,16 +151,18 @@ func (sync *UserSynchronizer) updateUsers(ctx context.Context, snk sink.BaseSink
 				return err
 			}
 			fmt.Println(updateSign, "User updated:", sdmUser.User.UserName)
+			successCount++
 			return nil
 		}, "updating an user")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
-func (sync *UserSynchronizer) deleteMissingSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) error {
+func (sync *UserSynchronizer) deleteMissingSDMUsers(ctx context.Context, snk sink.BaseSink, users []*sink.UserRow) (int, error) {
+	var successCount int
 	for _, user := range users {
 		err := sync.retrier.Run(func() error {
 			err := snk.DeleteUser(ctx, *user)
@@ -165,10 +173,10 @@ func (sync *UserSynchronizer) deleteMissingSDMUsers(ctx context.Context, snk sin
 			return nil
 		}, "deleting an user")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
 func userHasOutdatedData(row sink.UserRow, idpUser source.User) bool {

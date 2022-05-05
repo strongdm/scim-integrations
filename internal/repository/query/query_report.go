@@ -24,7 +24,8 @@ func (*reportQueryImpl) Insert() string {
 			users_deleted,
 			groups_created,
 			groups_updated,
-			groups_deleted
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+			groups_deleted,
+			status
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 	`
 }

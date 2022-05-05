@@ -27,12 +27,22 @@ type Report struct {
 	SinkUsersNotInIdP  []*sink.UserRow
 	SinkGroupsNotInIdP []*sink.GroupRow
 
-	UsersToCreateCount  int
-	UsersToUpdateCount  int
-	UsersToDeleteCount  int
-	GroupsToCreateCount int
-	GroupsToUpdateCount int
-	GroupsToDeleteCount int
+	CreatedUsersCount  int
+	CreatedGroupsCount int
+	UpdatedUsersCount  int
+	UpdatedGroupsCount int
+	DeletedUsersCount  int
+	DeletedGroupsCount int
+	Succeed            int
+}
+
+func NewReport() *Report {
+	return &Report{Succeed: 1}
+}
+
+func (rpt *Report) Succeeded() {
+	rpt.Complete = time.Now()
+	rpt.Succeed = 0
 }
 
 func (rpt *Report) String() string {
