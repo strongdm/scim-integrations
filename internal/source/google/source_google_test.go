@@ -97,11 +97,11 @@ func TestGoogleSourceExtractGroups(t *testing.T) {
 		assertT.Len(users, 2)
 		assertT.Nil(err)
 
-		userGroups := mock.ExtractGroupsFromUsers(users)
+		groups := mock.ExtractGroupsFromUsers(users)
 
-		assertT.NotNil(userGroups)
-		assertT.Len(userGroups, 1)
-		assertT.Len(userGroups[0].Members, 2)
+		assertT.NotNil(groups)
+		assertT.Len(groups, 1)
+		assertT.Len(groups[0].Members, 2)
 	})
 }
 

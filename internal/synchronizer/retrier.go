@@ -1,7 +1,6 @@
 package synchronizer
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -20,7 +19,7 @@ type Retrier interface {
 	GetRateLimiter() RateLimiter
 	setEntityScope(EntityScope)
 	getEntityScope() EntityScope
-	ErrorIsUnexpected(err error) bool
+	ErrorIsExpected(err error) bool
 }
 
 const (
@@ -90,18 +89,17 @@ func (r *retrierImpl) GetBackoffConfig() backoff.BackOff {
 }
 
 func (r *retrierImpl) Run(fn func() error, actionDescription string) error {
-	err := backoff.Retry(r.try(r, fn, actionDescription), r.GetBackoffConfig())
-	return err
+	return backoff.Retry(r.try(r, fn, actionDescription), r.GetBackoffConfig())
 }
 
-func (r *retrierImpl) ErrorIsUnexpected(err error) bool {
+func (r *retrierImpl) ErrorIsExpected(err error) bool {
 	errs := mappedScopeErrs[r.scope]
 	for _, msg := range errs {
 		if strings.Contains(err.Error(), msg) {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func try(retrier Retrier, fn func() error, actionDescription string) func() error {
@@ -114,16 +112,16 @@ func try(retrier Retrier, fn func() error, actionDescription string) func() erro
 		err := fn()
 		limiter.IncreaseCounter()
 		if err != nil {
-			if !retrier.ErrorIsUnexpected(err) {
-				fmt.Fprintln(os.Stderr, err)
-				return nil
+			if !retrier.ErrorIsExpected(err) {
+				return err
 			}
 			retrier.IncreaseCounter()
 			if retrier.ExceededLimit() {
-				return errors.New("retry limit exceeded with the following error: " + err.Error())
+				fmt.Fprintf(os.Stderr, "retry limit exceeded with the following error: %s", err.Error())
+			} else {
+				fmt.Fprintf(os.Stderr, "Failed %s. Retrying the operation for the %dst time\n", actionDescription, retrier.GetCounter())
 			}
-			fmt.Fprintf(os.Stderr, "Failed %s. Retrying the operation for the %dst time\n", actionDescription, retrier.GetCounter())
-			return err
+			return nil
 		}
 		return nil
 	}

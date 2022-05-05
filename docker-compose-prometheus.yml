@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  scim-integrations:
+    build: .
+    ports:
+      - 2112:2112
+    networks:
+      - scim-integrations
+    env_file:
+      - env-file
+    volumes:
+      # Instead of /path/to/your/idp-key/folder specify the path of your idp-key.json
+      - /path/to/your/idp-key/folder:/scim-integrations/keys/
+  prometheus:
+    build: tools/prometheus
+    ports:
+      - 9090:9090
+    networks:
+      - scim-integrations
+  grafana:
+    build: tools/grafana
+    ports:
+      - 3000:3000
+    networks:
+      - scim-integrations
+networks:
+  scim-integrations:
+    driver: bridge

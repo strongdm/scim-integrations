@@ -3,9 +3,12 @@ package synchronizer
 import (
 	"context"
 	"fmt"
+	"os"
 	"scim-integrations/internal/flags"
+	"scim-integrations/internal/repository"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
+	"strings"
 	"time"
 )
 
@@ -26,7 +29,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer() *Synchronizer {
-	report := &Report{}
+	report := NewReport()
 	retrier := newRetrier(newRateLimiter())
 	return &Synchronizer{
 		report:            report,
@@ -61,7 +64,7 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 	}
 	sourceGroups := src.ExtractGroupsFromUsers(sourceUsers)
 	s.report.IdPUsers = sourceUsers
-	s.report.IdPUserGroups = sourceGroups
+	s.report.IdPGroups = sourceGroups
 	err = s.userSynchronizer.EnrichReport(snk)
 	if err != nil {
 		return err
@@ -83,8 +86,19 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 		if err != nil {
 			return err
 		}
-		s.report.Complete = time.Now()
+		s.report.Succeeded()
 		fmt.Println("Sync process completed at", s.report.Complete.String())
+		if isDockerized() {
+			_, err := repository.NewReportRepository().Insert(*reportToRepositoryReportsRow(s.report))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "An error occurred when caching a report:", err.Error())
+			}
+		}
 	}
 	return nil
+}
+
+func isDockerized() bool {
+	dockerizedEnv := strings.ToLower(os.Getenv("DOCKERIZED"))
+	return dockerizedEnv == "true"
 }

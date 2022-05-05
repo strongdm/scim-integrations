@@ -35,7 +35,8 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	if err != nil {
 		return err
 	}
-	err = sync.createGroups(ctx, snk, sync.report.IdPUserGroupsToAdd)
+	createdGroupsCount, err := sync.createGroups(ctx, snk, sync.report.IdPGroupsToCreate)
+	sync.report.CreatedGroupsCount = createdGroupsCount
 	if err != nil {
 		return err
 	}
@@ -43,12 +44,14 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	if err != nil {
 		return err
 	}
-	err = sync.updateGroupMembers(ctx, snk)
+	updatedGroupsCount, err := sync.updateGroupMembers(ctx, snk)
+	sync.report.UpdatedGroupsCount = updatedGroupsCount
 	if err != nil {
 		return err
 	}
 	if *flags.DeleteGroupsNotInIdPFlag {
-		err = sync.deleteMissingGroups(ctx, snk)
+		deletedGroupsCount, err := sync.deleteMissingGroups(ctx, snk)
+		sync.report.DeletedGroupsCount = deletedGroupsCount
 		if err != nil {
 			return err
 		}
@@ -66,16 +69,16 @@ func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 		sync.report.SinkGroups = sdmGroups
 	}
 	newGroups, groupsNotInIdP, existentGroups, groupsWithUpdatedData := sync.intersectGroups()
-	sync.report.IdPUserGroupsToAdd = newGroups
-	sync.report.IdPUserGroupsToUpdate = groupsWithUpdatedData
-	sync.report.IdPUserGroupsInSink = existentGroups
+	sync.report.IdPGroupsToCreate = newGroups
+	sync.report.IdPGroupsToUpdate = groupsWithUpdatedData
+	sync.report.IdPGroupsInSink = existentGroups
 	sync.report.SinkGroupsNotInIdP = groupsNotInIdP
 	return nil
 }
 
 func (sync *GroupSynchronizer) haveContentForSync() bool {
 	rpt := sync.report
-	return len(rpt.IdPUserGroupsToAdd) > 0 || len(rpt.IdPUserGroupsToUpdate) > 0 ||
+	return len(rpt.IdPGroupsToCreate) > 0 || len(rpt.IdPGroupsToUpdate) > 0 ||
 		(*flags.DeleteGroupsNotInIdPFlag && len(rpt.SinkGroupsNotInIdP) > 0)
 }
 
@@ -85,7 +88,7 @@ func (sync *GroupSynchronizer) intersectGroups() ([]*sink.GroupRow, []*sink.Grou
 	var existentGroups []*sink.GroupRow
 	var groupsWithUpdatedData []*sink.GroupRow
 	sync.enrichGroupMembers()
-	for _, idpGroup := range sync.report.IdPUserGroups {
+	for _, idpGroup := range sync.report.IdPGroups {
 		var found bool
 		var isOutdated bool
 		var sinkID string
@@ -119,7 +122,7 @@ func (sync *GroupSynchronizer) groupExistsInSink(idpGroup *source.UserGroup) (bo
 func (sync *GroupSynchronizer) getMissingGroups() []*sink.GroupRow {
 	var missingGroups []*sink.GroupRow
 	var mappedGroups = map[string]bool{}
-	for _, group := range sync.report.IdPUserGroups {
+	for _, group := range sync.report.IdPGroups {
 		mappedGroups[formatSourceGroupName(group.DisplayName)] = true
 	}
 	for _, group := range sync.report.SinkGroups {
@@ -149,12 +152,12 @@ func groupHasOutdatedData(idpGroup *source.UserGroup, sdmGroup *sink.GroupRow) b
 }
 
 func (sync *GroupSynchronizer) enrichGroupMembers() {
-	users := append(sync.report.IdPUsersToAdd, sync.report.IdPUsersInSink...)
+	users := append(sync.report.IdPUsersToCreate, sync.report.IdPUsersInSink...)
 	usersMappedByUsername := map[string]*sink.UserRow{}
 	for _, sdmUser := range users {
 		usersMappedByUsername[sdmUser.User.UserName] = sdmUser
 	}
-	for _, idpGroup := range sync.report.IdPUserGroups {
+	for _, idpGroup := range sync.report.IdPGroups {
 		for idx, member := range idpGroup.Members {
 			if _, ok := usersMappedByUsername[member.Email]; ok {
 				idpGroup.Members[idx].SDMObjectID = usersMappedByUsername[member.Email].User.ID
@@ -163,7 +166,8 @@ func (sync *GroupSynchronizer) enrichGroupMembers() {
 	}
 }
 
-func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*sink.GroupRow) error {
+func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSink, sinkGroups []*sink.GroupRow) (int, error) {
+	var successCount int
 	for _, group := range sinkGroups {
 		err := sync.retrier.Run(func() error {
 			members, notRegisteredMembers := getValidAndUnregisteredMembers(group)
@@ -183,18 +187,20 @@ func (sync *GroupSynchronizer) createGroups(ctx context.Context, snk sink.BaseSi
 					}
 				}
 				fmt.Println()
+				successCount++
 			}
 			return nil
 		}, "creating a group")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
-func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) error {
-	for _, group := range sync.report.IdPUserGroupsToUpdate {
+func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.BaseSink) (int, error) {
+	var successCount int
+	for _, group := range sync.report.IdPGroupsToUpdate {
 		err := sync.retrier.Run(func() error {
 			members, notRegisteredMembers := getValidAndUnregisteredMembers(group)
 			if len(notRegisteredMembers) > 0 {
@@ -223,16 +229,18 @@ func (sync *GroupSynchronizer) updateGroupMembers(ctx context.Context, snk sink.
 				}
 				fmt.Println()
 			}
+			successCount++
 			return nil
 		}, "updating group members")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
-func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink.BaseSink) error {
+func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink.BaseSink) (int, error) {
+	var successCount int
 	for _, group := range sync.report.SinkGroupsNotInIdP {
 		err := sync.retrier.Run(func() error {
 			err := snk.DeleteGroup(ctx, group)
@@ -240,13 +248,14 @@ func (sync *GroupSynchronizer) deleteMissingGroups(ctx context.Context, snk sink
 				return err
 			}
 			fmt.Println(deleteSign, "Group deleted:", group.DisplayName)
+			successCount++
 			return nil
 		}, "deleting a group")
 		if err != nil {
-			return err
+			return successCount, err
 		}
 	}
-	return nil
+	return successCount, nil
 }
 
 func (sync *GroupSynchronizer) hasNewMembers(name string, members []*sink.GroupMember) bool {

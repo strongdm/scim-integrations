@@ -8,11 +8,11 @@ COPY go.mod ./
 COPY go.sum ./
 COPY main.go ./
 COPY internal ./internal
-RUN GOOS=linux GOARCH=amd64 /usr/local/go/bin/go build -o scim .
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=1 /usr/local/go/bin/go build -o scim .
 RUN rm -r main.go internal/ go.mod go.sum
 
 # final stage
-FROM alpine:latest AS RUNNER
+FROM debian:buster-slim AS RUNNER
 
 WORKDIR /scim-integrations
 
@@ -27,9 +27,11 @@ ENV SDM_SCIM_DELETE_MISSING_USERS="false"
 ENV SDM_SCIM_DELETE_MISSING_GROUPS="false"
 ENV SDM_SCIM_IDP_KEY_PATH="/scim-integrations/keys/idp-key.json"
 ENV SDM_SCIM_CRON="*/15 * * * *"
+ENV DOCKERIZED="true"
 
 # install dependencies
-RUN apk add bash libc6-compat
+RUN apt-get update -y
+RUN apt-get install -y cron ca-certificates
 
 # copy project files
 COPY exec.sh /exec.sh
@@ -38,4 +40,4 @@ COPY start.sh /start.sh
 # add execution
 RUN chmod +x /start.sh /exec.sh /scim
 
-CMD ["sh", "/start.sh"]
+CMD ["bash", "/start.sh"]

@@ -65,10 +65,10 @@ Groups to create:
 Users to create:
 
         + ID: 123456789123456789123
-                + User Name: rodolfo+me3@strongdm.com
-                + Display Name: Rodolfo Campos
-                + Given Name: Rodolfo
-                + Family Name: Campos
+                + User Name: catherine@domain.com
+                + Display Name: Catherine Cazares
+                + Given Name: Catherine
+                + Family Name: Cazares
                 + Active: true
                 + Groups:
                         + /engineering
@@ -78,15 +78,15 @@ Groups to update:
          ~ ID: r-1a2b3c4d5e6f
          ~ Display Name: /support
          ~ Members:
-                 ~ E-mail: rodolfo+me2@strongdm.com
+                 ~ E-mail: shannon@domain.com
 
 Users to update:
 
         ~ ID: 123456789123456789123
-                ~ User Name: rodolfo+me2@strongdm.com
-                ~ Display Name: Rodolfo Campos
-                ~ Given Name: Rodolfo
-                ~ Family Name: Campos
+                ~ User Name: maria@domain.com
+                ~ Display Name: Maria New
+                ~ Given Name: Maria
+                ~ Family Name: New
                 ~ Active: true
                 ~ Groups:
                         ~ /support
@@ -99,21 +99,21 @@ Groups to delete:
 Users to delete:
 
         - ID: a-zzz
-                - Display Name: Rodolfo Campos
-                - User Name: rodolfo+me@strongdm.com
+                - Display Name: Norman Jordan
+                - User Name: norman@domain.com
 
 Synchronizing users...
-+ User created: rodolfo+me3@strongdm.com
-~ User updated: rodolfo+me2@strongdm.com
-- User deleted: rodolfo+me@strongdm.com
++ User created: catherine@domain.com
+~ User updated: maria@domain.com
+- User deleted: norman@domain.com
 
 Synchronizing groups...
 + Group created: engineering
         + Members:
-                + rodolfo+me3@strongdm.com
+                + catherine@domain.com
 ~ Group updated: support
         ~ Members:
-                ~ rodolfo+me2@strongdm.com
+                ~ shannon@domain.com
 ~ Group deleted: Removeme
 
 Sync with google IdP finished
@@ -136,6 +136,8 @@ When running with docker, you need to follow these steps:
 - Then you can run `docker-compose up`
 
 **NOTE**: the project was designed to handle orgs with max of 100,000 users and ~50 groups. If your use case is above this numbers, please reach out to support.
+
+**NOTE**: if you want to run this application with `Prometheus` and `Grafana`, you can run `docker-compose` with the [docker-compose-prometheus.yml](./docker-compose-prometheus.yml) file to see an example running with a proper setup that you can follow. For more details, please refer to [CONFIGURE_PROMETHEUS.md](./docs/CONFIGURE_PROMETHEUS.md).
 
 ## Contributing
 
