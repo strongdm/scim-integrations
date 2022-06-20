@@ -27,25 +27,31 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 	}
 	fmt.Println("Synchronizing users...")
 	sync.retrier.setEntityScope(UserScope)
-	createdUsersCount, err := sync.createUsers(ctx, snk, sync.report.IdPUsersToCreate)
-	sync.report.CreatedUsersCount = createdUsersCount
-	if err != nil {
-		return err
-	}
-	err = sync.EnrichReport(snk)
-	if err != nil {
-		return err
-	}
-	updatedUsersCount, err := sync.updateUsers(ctx, snk, sync.report.IdPUsersToUpdate)
-	sync.report.UpdatedUsersCount = updatedUsersCount
-	if err != nil {
-		return err
-	}
-	if *flags.DeleteUsersNotInIdPFlag {
-		deletedUsersCount, err := sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
-		sync.report.DeletedUsersCount = deletedUsersCount
+	if *flags.AllOperationFlag || *flags.AddOperationFlag {
+		createdUsersCount, err := sync.createUsers(ctx, snk, sync.report.IdPUsersToCreate)
+		sync.report.CreatedUsersCount = createdUsersCount
 		if err != nil {
 			return err
+		}
+		err = sync.EnrichReport(snk)
+		if err != nil {
+			return err
+		}
+	}
+	if *flags.AllOperationFlag || *flags.UpdateOperationFlag {
+		updatedUsersCount, err := sync.updateUsers(ctx, snk, sync.report.IdPUsersToUpdate)
+		sync.report.UpdatedUsersCount = updatedUsersCount
+		if err != nil {
+			return err
+		}
+	}
+	if *flags.AllOperationFlag || *flags.DeleteOperationFlag {
+		if *flags.DeleteUsersNotInIdPFlag {
+			deletedUsersCount, err := sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
+			sync.report.DeletedUsersCount = deletedUsersCount
+			if err != nil {
+				return err
+			}
 		}
 	}
 	fmt.Println()
@@ -68,9 +74,13 @@ func (sync *UserSynchronizer) EnrichReport(snk sink.BaseSink) error {
 }
 
 func (sync *UserSynchronizer) haveContentForSync() bool {
+	canPerformAdd := *flags.AllOperationFlag || *flags.AddOperationFlag
+	canPerformUpdate := *flags.AllOperationFlag || *flags.UpdateOperationFlag
+	canPerformDelete := *flags.AllOperationFlag || *flags.DeleteOperationFlag
 	rpt := sync.report
-	return len(rpt.IdPUsersToCreate) > 0 || len(rpt.IdPUsersToUpdate) > 0 ||
-		(*flags.DeleteUsersNotInIdPFlag && len(rpt.SinkUsersNotInIdP) > 0)
+	return (len(rpt.IdPUsersToCreate) > 0 && canPerformAdd) ||
+		(len(rpt.IdPUsersToUpdate) > 0 && canPerformUpdate) ||
+		((*flags.DeleteUsersNotInIdPFlag && len(rpt.SinkUsersNotInIdP) > 0) && canPerformDelete)
 }
 
 func (sync *UserSynchronizer) intersectUsers() ([]*sink.UserRow, []*sink.UserRow, []*sink.UserRow, []*sink.UserRow) {

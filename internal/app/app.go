@@ -33,7 +33,6 @@ func Start() {
 	if removeFileErr != nil {
 		showErr(removeFileErr)
 	}
-	fmt.Printf("Sync with %s IdP finished\n", *flags.IdPFlag)
 }
 
 func checkEnvironment() {

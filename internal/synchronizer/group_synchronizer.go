@@ -35,27 +35,34 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 	if err != nil {
 		return err
 	}
-	createdGroupsCount, err := sync.createGroups(ctx, snk, sync.report.IdPGroupsToCreate)
-	sync.report.CreatedGroupsCount = createdGroupsCount
-	if err != nil {
-		return err
-	}
-	err = sync.EnrichReport(snk)
-	if err != nil {
-		return err
-	}
-	updatedGroupsCount, err := sync.updateGroupMembers(ctx, snk)
-	sync.report.UpdatedGroupsCount = updatedGroupsCount
-	if err != nil {
-		return err
-	}
-	if *flags.DeleteGroupsNotInIdPFlag {
-		deletedGroupsCount, err := sync.deleteMissingGroups(ctx, snk)
-		sync.report.DeletedGroupsCount = deletedGroupsCount
+	if *flags.AllOperationFlag || *flags.AddOperationFlag {
+		createdGroupsCount, err := sync.createGroups(ctx, snk, sync.report.IdPGroupsToCreate)
+		sync.report.CreatedGroupsCount = createdGroupsCount
+		if err != nil {
+			return err
+		}
+		err = sync.EnrichReport(snk)
 		if err != nil {
 			return err
 		}
 	}
+	if *flags.AllOperationFlag || *flags.UpdateOperationFlag {
+		updatedGroupsCount, err := sync.updateGroupMembers(ctx, snk)
+		sync.report.UpdatedGroupsCount = updatedGroupsCount
+		if err != nil {
+			return err
+		}
+	}
+	if *flags.AllOperationFlag || *flags.DeleteOperationFlag {
+		if *flags.DeleteGroupsNotInIdPFlag {
+			deletedGroupsCount, err := sync.deleteMissingGroups(ctx, snk)
+			sync.report.DeletedGroupsCount = deletedGroupsCount
+			if err != nil {
+				return err
+			}
+		}
+	}
+	fmt.Println()
 	return nil
 }
 
@@ -77,9 +84,13 @@ func (sync *GroupSynchronizer) EnrichReport(snk sink.BaseSink) error {
 }
 
 func (sync *GroupSynchronizer) haveContentForSync() bool {
+	canPerformAdd := *flags.AllOperationFlag || *flags.AddOperationFlag
+	canPerformUpdate := *flags.AllOperationFlag || *flags.UpdateOperationFlag
+	canPerformDelete := *flags.AllOperationFlag || *flags.DeleteOperationFlag
 	rpt := sync.report
-	return len(rpt.IdPGroupsToCreate) > 0 || len(rpt.IdPGroupsToUpdate) > 0 ||
-		(*flags.DeleteGroupsNotInIdPFlag && len(rpt.SinkGroupsNotInIdP) > 0)
+	return (len(rpt.IdPGroupsToCreate) > 0 && canPerformAdd) ||
+		(len(rpt.IdPGroupsToUpdate) > 0 && canPerformUpdate) ||
+		((*flags.DeleteGroupsNotInIdPFlag && len(rpt.SinkGroupsNotInIdP) > 0) && canPerformDelete)
 }
 
 func (sync *GroupSynchronizer) intersectGroups() ([]*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow) {

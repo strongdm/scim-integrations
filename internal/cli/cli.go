@@ -20,6 +20,10 @@ var (
 		"enable-rate-limiter",
 		"delete-groups-missing-in-idp",
 		"delete-users-missing-in-idp",
+		"all",
+		"add",
+		"update",
+		"delete",
 	}
 )
 

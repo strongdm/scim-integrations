@@ -77,22 +77,23 @@ func (s *Synchronizer) fillReport(src source.BaseSource, snk sink.BaseSink) erro
 }
 
 func (s *Synchronizer) performSync(snk sink.BaseSink) error {
-	if *flags.ApplyFlag {
-		err := s.userSynchronizer.Sync(context.Background(), snk)
+	if !*flags.ApplyFlag {
+		return nil
+	}
+	err := s.userSynchronizer.Sync(context.Background(), snk)
+	if err != nil {
+		return err
+	}
+	err = s.groupSynchronizer.Sync(context.Background(), snk)
+	if err != nil {
+		return err
+	}
+	s.report.Succeeded()
+	fmt.Println("Sync process completed at", s.report.Complete.String())
+	if isDockerized() {
+		_, err := repository.NewReportRepository().Insert(*reportToRepositoryReportsRow(s.report))
 		if err != nil {
-			return err
-		}
-		err = s.groupSynchronizer.Sync(context.Background(), snk)
-		if err != nil {
-			return err
-		}
-		s.report.Succeeded()
-		fmt.Println("Sync process completed at", s.report.Complete.String())
-		if isDockerized() {
-			_, err := repository.NewReportRepository().Insert(*reportToRepositoryReportsRow(s.report))
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "An error occurred when caching a report:", err.Error())
-			}
+			fmt.Fprintln(os.Stderr, "An error occurred when caching a report:", err.Error())
 		}
 	}
 	return nil
