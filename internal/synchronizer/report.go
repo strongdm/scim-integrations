@@ -3,6 +3,7 @@ package synchronizer
 import (
 	"encoding/json"
 	"fmt"
+	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
 	"time"
@@ -59,9 +60,15 @@ func (rpt *Report) short() string {
 }
 
 func (rpt *Report) showPlan() {
-	rpt.showEntitiesToBeCreated()
-	rpt.showEntitiesToBeUpdated()
-	rpt.showEntitiesToBeDeleted()
+	if *flags.AllOperationFlag || *flags.AddOperationFlag {
+		rpt.showEntitiesToBeCreated()
+	}
+	if *flags.AllOperationFlag || *flags.UpdateOperationFlag {
+		rpt.showEntitiesToBeUpdated()
+	}
+	if *flags.AllOperationFlag || *flags.DeleteOperationFlag {
+		rpt.showEntitiesToBeDeleted()
+	}
 }
 
 func (rpt *Report) showEntitiesToBeCreated() {
