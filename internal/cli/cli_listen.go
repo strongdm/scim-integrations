@@ -60,12 +60,12 @@ func exposeMetrics() error {
 	http.Handle("/metrics", promhttp.Handler())
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", metricsPort))
 	if err != nil {
-		return fmt.Errorf("An error was occurred running prometheus metrics: %v", err)
+		return fmt.Errorf("An error occurred running prometheus metrics: %v", err)
 	}
 	fmt.Printf("Prometheus metrics endpoint is listening in http://localhost:%v\n", metricsPort)
 	iterateMetrics()
 	if err = http.Serve(listener, nil); err != nil {
-		return fmt.Errorf("An error was occurred running prometheus metrics: %v", err)
+		return fmt.Errorf("An error occurred running prometheus metrics: %v", err)
 	}
 	return nil
 }

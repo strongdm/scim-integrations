@@ -37,8 +37,14 @@ $ export SDM_SCIM_TOKEN=<YOUR ADMIN TOKEN>
 
 ```
 $ go run main.go -help
+  -add
+        enable the visualization of the planned data for the create operation
+  -all
+        enable the visualization of the planned data for all operations (create, update and delete)
   -apply
         apply the planned changes
+  -delete
+        enable the visualization of the planned data for the delete operation
   -delete-groups-missing-in-idp
         delete groups present in SDM but not in the selected Identity Provider
   -delete-users-missing-in-idp
@@ -47,14 +53,20 @@ $ go run main.go -help
         synchronize the planned data with a requester rate limiter, limiting with a limit set as 1000 requests per 30 seconds
   -idp string
         use Google as an IdP
-  -query string
-        pass a query according to the available query syntax for the selected Identity Provider
+  -idp-query string
+        define a query according to the available query syntax for the selected Identity Provider
+  -sdm-groups-query string
+        define a query according to the SCIM query syntax to filter the SDM users and groups results
+  -sdm-users-query string
+        define a query according to the SCIM query syntax to filter the SDM users and groups results
+  -update
+        enable the visualization of the planned data for the update operation
 ```
 
 - Running Google IdP:
 
 ```
-$ go run main.go -idp google -apply
+$ go run main.go -idp google -all -apply
 
 Collecting data...
 
@@ -115,12 +127,11 @@ Synchronizing groups...
         ~ Members:
                 ~ shannon@domain.com
 ~ Group deleted: Removeme
-
-Sync with google IdP finished
 ```
 
-- If you just want to see the plan without applying, run the command above without the `-apply` flag.
+**NOTES**:
 
+- If you just want to see the plan without applying, run the command above without the `-apply` flag.
 - If you want to set a rate limiter when synchronizing the planned data, just add the `-enable-rate-limiter` flag. The limit was defined to 1000 requests per 30s.
 
 ## Running with Docker
@@ -135,9 +146,12 @@ When running with docker, you need to follow these steps:
 - Go to [docker-compose.yml](docker-compose.yml) and in the `scim-integrations` service refer the folder containing the `idp-key.json` file in the volume source (`/path/to/your/idp-key/folder:/scim/keys`)
 - Then you can run `docker-compose up`
 
-**NOTE**: the project was designed to handle orgs with max of 100,000 users and ~50 groups. If your use case is above this numbers, please reach out to support.
+**NOTES**:
 
-**NOTE**: if you want to run this application with `Prometheus` and `Grafana`, you can run `docker-compose` with the [docker-compose-prometheus.yml](./docker-compose-prometheus.yml) file to see an example running with a proper setup that you can follow. For more details, please refer to [CONFIGURE_PROMETHEUS.md](./docs/CONFIGURE_PROMETHEUS.md).
+- the project was designed to handle orgs with max of 100,000 users and ~50 groups. If your use case is above this numbers, please reach out to support.
+- if you want to run this application with `Prometheus` and `Grafana`, you can run `docker-compose` with the [docker-compose-prometheus.yml](./docker-compose-prometheus.yml) file to see an example running with a proper setup that you can follow. For more details, please refer to [CONFIGURE_PROMETHEUS.md](./docs/CONFIGURE_PROMETHEUS.md).
+
+For more details, please refer to [CONFIGURE_DOCKER](./docs/CONFIGURE_DOCKER.md)
 
 ## Contributing
 
