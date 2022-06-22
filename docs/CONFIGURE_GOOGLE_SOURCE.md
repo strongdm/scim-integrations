@@ -59,4 +59,4 @@ And your Service Account is configured. Now you need to set the following enviro
 
 ### Additional flags
 
-To add a filter to the IdP search, you can use the `-query` flag refering to the [Google Users Search Documentation](https://developers.google.com/admin-sdk/directory/v1/guides/search-users)
+To add a filter to the IdP search, you can use the `-idp-query` flag refering to the [Google Users Search Documentation](https://developers.google.com/admin-sdk/directory/v1/guides/search-users)

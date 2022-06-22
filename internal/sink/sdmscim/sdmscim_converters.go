@@ -15,7 +15,7 @@ func usersWithGroupsToSink(iterator scimmodels.Iterator[scimmodels.User], userGr
 		result = append(result, userToSink(&user, userGroups[user.ID]))
 	}
 	if iterator.Err() != nil {
-		return nil, errors.New(fmt.Sprintf("An error was occurred listing the SDM users: %v\n", iterator.Err()))
+		return nil, errors.New(fmt.Sprintf("An error occurred listing the SDM users: %v\n", iterator.Err()))
 	}
 	return result, nil
 }

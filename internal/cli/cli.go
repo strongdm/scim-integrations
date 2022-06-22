@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -24,35 +23,45 @@ var (
 		"add",
 		"update",
 		"delete",
+		"h",
+		"help",
 	}
 )
 
 func ResolveCommand() (bool, error) {
-	if ok, command := extractCommand(strings.Join(os.Args[1:], " ")); ok && commandIsValid(command) {
+	if exists, command := extractCommand(os.Args[1:]); exists && commandIsValid(command) {
 		return true, commands[command].Exec()
-	} else if ok {
+	} else if exists {
 		return false, fmt.Errorf("Command \"%s\" not found", command)
 	}
 	return false, nil
 }
 
-func extractCommand(call string) (bool, string) {
-	callWithoutBoolFlags := removeBoolFlags(call)
-	compiled, _ := regexp.Compile(fmt.Sprint("-[^ ]* ('([^']|\\')+'|\"([^\"]|\\\")+\"|[^ ]+)"))
-	flags := compiled.FindAllString(callWithoutBoolFlags, -1)
-	callWithoutFlags := callWithoutBoolFlags
-	for _, flagEntry := range flags {
-		callWithoutFlags = strings.ReplaceAll(callWithoutFlags, flagEntry, "")
+func extractCommand(args []string) (bool, string) {
+	argsWithoutBoolFlags := removeBoolFlags(args)
+	if len(argsWithoutBoolFlags)%2 == 0 {
+		return false, ""
 	}
-	command := strings.TrimSpace(callWithoutFlags)
-	return command != "", command
+	for _, arg := range argsWithoutBoolFlags {
+		if _, ok := commands[arg]; ok {
+			return true, arg
+		}
+	}
+	return true, ""
 }
 
-func removeBoolFlags(call string) string {
-	var cleanedCall string = call
-	for _, flag := range boolFlags {
-		if strings.Contains(call, flag) {
-			cleanedCall = strings.ReplaceAll(cleanedCall, fmt.Sprintf(" -%s", flag), "")
+func removeBoolFlags(args []string) []string {
+	var cleanedCall []string = []string{}
+	for _, arg := range args {
+		found := false
+		for _, flag := range boolFlags {
+			if flag == strings.Replace(arg, "-", "", 1) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			cleanedCall = append(cleanedCall, arg)
 		}
 	}
 	return cleanedCall

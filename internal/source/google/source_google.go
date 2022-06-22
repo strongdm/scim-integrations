@@ -85,7 +85,7 @@ func (*sourceGoogleImpl) ExtractGroupsFromUsers(users []*source.User) []*source.
 }
 
 func (*sourceGoogleImpl) InternalGoogleFetchUsers(service *admin.Service, nextPageToken string) (*admin.Users, error) {
-	return service.Users.List().Query(*flags.QueryFlag).Customer(DefaultGoogleCustomer).PageToken(nextPageToken).MaxResults(fetchPageSize).Do()
+	return service.Users.List().Query(*flags.IdPQueryFlag).Customer(DefaultGoogleCustomer).PageToken(nextPageToken).MaxResults(fetchPageSize).Do()
 }
 
 func googleUsersToSCIMUser(googleUsers []*admin.User) []*source.User {

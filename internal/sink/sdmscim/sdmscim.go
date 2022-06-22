@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"strings"
 
@@ -31,7 +32,9 @@ func (s *sinkSDMSCIMImpl) FetchUsers(ctx context.Context) ([]*sink.UserRow, erro
 		return nil, err
 	}
 	userGroups := separateGroupsByUser(groups)
-	iterator := s.client.Users().List(ctx, nil)
+	iterator := s.client.Users().List(ctx, &scimmodels.PaginationOptions{
+		Filter: *flags.SDMUsersQueryFlag,
+	})
 	users, err := usersWithGroupsToSink(iterator, userGroups)
 	if err != nil {
 		return nil, err
@@ -47,7 +50,7 @@ func (s *sinkSDMSCIMImpl) CreateUser(ctx context.Context, row *sink.UserRow) (*s
 		Active:     true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf(formatErrorMessage("An error was occurred creating the user \"%s\": %v", row.User.UserName, err))
+		return nil, fmt.Errorf(formatErrorMessage("An error occurred creating the user \"%s\": %v", row.User.UserName, err))
 	}
 	row.User.ID = response.ID
 	return userToSink(response, nil), nil
@@ -61,7 +64,7 @@ func (s *sinkSDMSCIMImpl) ReplaceUser(ctx context.Context, row sink.UserRow) err
 		Active:     row.User.Active,
 	})
 	if err != nil {
-		return fmt.Errorf(formatErrorMessage("An error was occurred updating the user \"%s\": %v", row.User.UserName, err))
+		return fmt.Errorf(formatErrorMessage("An error occurred updating the user \"%s\": %v", row.User.UserName, err))
 	}
 	return nil
 }
@@ -69,20 +72,22 @@ func (s *sinkSDMSCIMImpl) ReplaceUser(ctx context.Context, row sink.UserRow) err
 func (s *sinkSDMSCIMImpl) DeleteUser(ctx context.Context, row sink.UserRow) error {
 	_, err := s.client.Users().Delete(ctx, row.User.ID)
 	if err != nil {
-		return fmt.Errorf(formatErrorMessage("An error was occurred deleting the user \"%s\": %v", row.User.UserName, err))
+		return fmt.Errorf(formatErrorMessage("An error occurred deleting the user \"%s\": %v", row.User.UserName, err))
 	}
 	return nil
 }
 
 func (s *sinkSDMSCIMImpl) FetchGroups(ctx context.Context) ([]*sink.GroupRow, error) {
-	iterator := s.client.Groups().List(ctx, nil)
+	iterator := s.client.Groups().List(ctx, &scimmodels.PaginationOptions{
+		Filter: *flags.SDMGroupsQueryFlag,
+	})
 	var result []*sink.GroupRow
 	for iterator.Next() {
 		group := *iterator.Value()
 		result = append(result, groupToSink(&group))
 	}
 	if iterator.Err() != nil {
-		return nil, fmt.Errorf(formatErrorMessage("An error was occurred listing the SDM groups: %v", iterator.Err()))
+		return nil, fmt.Errorf(formatErrorMessage("An error occurred listing the SDM groups: %v", iterator.Err()))
 	}
 	return result, nil
 }
@@ -95,7 +100,7 @@ func (s *sinkSDMSCIMImpl) CreateGroup(ctx context.Context, group *sink.GroupRow)
 		Members:     sdmMembers,
 	})
 	if err != nil {
-		return nil, fmt.Errorf(formatErrorMessage("An error was occurred creating the group \"%s\": %v", groupName, err))
+		return nil, fmt.Errorf(formatErrorMessage("An error occurred creating the group \"%s\": %v", groupName, err))
 	}
 	group.ID = response.ID
 	return groupToSink(response), nil
@@ -105,7 +110,7 @@ func (s *sinkSDMSCIMImpl) ReplaceGroupMembers(ctx context.Context, group *sink.G
 	sdmMembers := sinkGroupMembersToSDMSCIM(group.Members)
 	_, err := s.client.Groups().UpdateReplaceMembers(ctx, group.ID, sdmMembers)
 	if err != nil {
-		return fmt.Errorf(formatErrorMessage("An error was occurred replacing the %s group members: %v", group.DisplayName, err))
+		return fmt.Errorf(formatErrorMessage("An error occurred replacing the %s group members: %v", group.DisplayName, err))
 	}
 	return nil
 }
@@ -113,7 +118,7 @@ func (s *sinkSDMSCIMImpl) ReplaceGroupMembers(ctx context.Context, group *sink.G
 func (s *sinkSDMSCIMImpl) DeleteGroup(ctx context.Context, group *sink.GroupRow) error {
 	_, err := s.client.Groups().Delete(ctx, group.ID)
 	if err != nil {
-		return fmt.Errorf(formatErrorMessage("An error was occurred deleting the group \"%s\": %v", group.DisplayName, err))
+		return fmt.Errorf(formatErrorMessage("An error occurred deleting the group \"%s\": %v", group.DisplayName, err))
 	}
 	return nil
 }
