@@ -60,3 +60,7 @@ And your Service Account is configured. Now you need to set the following enviro
 ### Additional flags
 
 To add a filter to the IdP search, you can use the `-idp-query` flag refering to the [Google Users Search Documentation](https://developers.google.com/admin-sdk/directory/v1/guides/search-users)
+
+### Additional env variables
+
+- `SDM_SCIM_GOOGLE_ROOT_ORG_UNIT_ALIAS` - alias for representing the root organization unit in strongDM roles
