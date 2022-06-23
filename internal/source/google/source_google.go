@@ -132,6 +132,10 @@ func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.Token
 
 func getUserGroupName(googleUser *admin.User) string {
 	if googleUser.OrgUnitPath == "/" {
+		alias := os.Getenv("SDM_SCIM_GOOGLE_ROOT_ORG_UNIT_ALIAS")
+		if alias != "" {
+			return alias
+		}
 		return "root"
 	}
 	return googleUser.OrgUnitPath
