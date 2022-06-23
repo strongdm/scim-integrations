@@ -4,8 +4,6 @@ services:
     build: .
     ports:
       - 2112:2112
-    networks:
-      - scim-integrations
     env_file:
       - env-file
     volumes:
@@ -15,14 +13,7 @@ services:
     build: tools/prometheus
     ports:
       - 9090:9090
-    networks:
-      - scim-integrations
   grafana:
     build: tools/grafana
     ports:
       - 3000:3000
-    networks:
-      - scim-integrations
-networks:
-  scim-integrations:
-    driver: bridge

@@ -8,7 +8,6 @@ import (
 	"scim-integrations/internal/repository"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
-	"strings"
 	"time"
 )
 
@@ -90,7 +89,7 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 	}
 	s.report.Succeeded()
 	fmt.Println("Sync process completed at", s.report.Complete.String())
-	if isDockerized() {
+	if hasDefinedDatabase() {
 		_, err := repository.NewReportRepository().Insert(*reportToRepositoryReportsRow(s.report))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "An error occurred when caching a report:", err.Error())
@@ -99,7 +98,7 @@ func (s *Synchronizer) performSync(snk sink.BaseSink) error {
 	return nil
 }
 
-func isDockerized() bool {
-	dockerizedEnv := strings.ToLower(os.Getenv("DOCKERIZED"))
-	return dockerizedEnv == "true"
+func hasDefinedDatabase() bool {
+	dbFilePath := os.Getenv("SDM_SCIM_REPORTS_DATABASE_PATH")
+	return dbFilePath != ""
 }

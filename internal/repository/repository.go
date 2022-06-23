@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -34,10 +33,6 @@ var (
 )
 
 func init() {
-	dockerizedEnv := strings.ToLower(os.Getenv("DOCKERIZED"))
-	if dockerizedEnv != "true" {
-		return
-	}
 	err := setupDB()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, err.Error())
@@ -63,7 +58,11 @@ func createTableQuery(table *table) string {
 }
 
 func getConnection() (*sql.DB, error) {
-	conn, err := sql.Open("sqlite3", "/cache.db")
+	dbFilePath := os.Getenv("SDM_SCIM_REPORTS_DATABASE_PATH")
+	if dbFilePath == "" {
+		dbFilePath = "/reports.db"
+	}
+	conn, err := sql.Open("sqlite3", dbFilePath)
 	if err != nil {
 		return nil, err
 	}
