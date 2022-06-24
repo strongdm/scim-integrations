@@ -85,7 +85,7 @@ func loadReport() {
 		fmt.Fprintln(os.Stderr, "An error occurred when collecting report metrics:", err.Error())
 		return
 	}
-	if len(reports) == 0 {
+	if reports == nil || len(reports) == 0 {
 		return
 	}
 	report := reports[0]

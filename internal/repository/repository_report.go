@@ -25,6 +25,9 @@ func (repo *reportRepositoryImpl) Select(filter *query.SelectFilter) ([]*Reports
 }
 
 func (r *reportRepositoryImpl) Insert(report ReportsRow) (int64, error) {
+	if !isDatabaseEnabled() {
+		return -1, nil
+	}
 	result, err := exec(
 		query.NewReportQuery().Insert(),
 		report.StartedAt,

@@ -1,4 +1,3 @@
 SDM_SCIM_TOKEN=<your-SDM-SCIM-TOKEN>
 SDM_SCIM_IDP=<your-idp-user-key-admin>
 SDM_SCIM_IDP_USER=<your-idp-user-key-admin>
-SDM_SCIM_REPORTS_DATABASE_PATH=<path-of-your-sqlite3-database>

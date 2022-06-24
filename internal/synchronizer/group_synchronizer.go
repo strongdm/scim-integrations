@@ -54,12 +54,10 @@ func (sync *GroupSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) erro
 		}
 	}
 	if *flags.AllOperationFlag || *flags.DeleteOperationFlag {
-		if *flags.DeleteGroupsNotInIdPFlag {
-			deletedGroupsCount, err := sync.deleteMissingGroups(ctx, snk)
-			sync.report.DeletedGroupsCount = deletedGroupsCount
-			if err != nil {
-				return err
-			}
+		deletedGroupsCount, err := sync.deleteMissingGroups(ctx, snk)
+		sync.report.DeletedGroupsCount = deletedGroupsCount
+		if err != nil {
+			return err
 		}
 	}
 	fmt.Println()
@@ -90,7 +88,7 @@ func (sync *GroupSynchronizer) haveContentForSync() bool {
 	rpt := sync.report
 	return (len(rpt.IdPGroupsToCreate) > 0 && canPerformAdd) ||
 		(len(rpt.IdPGroupsToUpdate) > 0 && canPerformUpdate) ||
-		((*flags.DeleteGroupsNotInIdPFlag && len(rpt.SinkGroupsNotInIdP) > 0) && canPerformDelete)
+		(len(rpt.SinkGroupsNotInIdP) > 0 && canPerformDelete)
 }
 
 func (sync *GroupSynchronizer) intersectGroups() ([]*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow, []*sink.GroupRow) {

@@ -45,10 +45,6 @@ $ go run main.go -help
         apply the planned changes
   -delete
         enable the visualization of the planned data for the delete operation
-  -delete-groups-missing-in-idp
-        delete groups present in SDM but not in the selected Identity Provider
-  -delete-users-missing-in-idp
-        delete users present in SDM but not in the selected Identity Provider
   -enable-rate-limiter
         synchronize the planned data with a requester rate limiter, limiting with a limit set as 1000 requests per 30 seconds
   -idp string

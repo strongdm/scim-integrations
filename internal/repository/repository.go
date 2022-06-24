@@ -33,6 +33,9 @@ var (
 )
 
 func init() {
+	if !isDatabaseEnabled() {
+		return
+	}
 	err := setupDB()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, err.Error())
@@ -59,9 +62,6 @@ func createTableQuery(table *table) string {
 
 func getConnection() (*sql.DB, error) {
 	dbFilePath := os.Getenv("SDM_SCIM_REPORTS_DATABASE_PATH")
-	if dbFilePath == "" {
-		dbFilePath = "/reports.db"
-	}
 	conn, err := sql.Open("sqlite3", dbFilePath)
 	if err != nil {
 		return nil, err
@@ -95,4 +95,8 @@ func exec(query string, args ...interface{}) (sql.Result, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+func isDatabaseEnabled() bool {
+	return os.Getenv("SDM_SCIM_REPORTS_DATABASE_PATH") != ""
 }
