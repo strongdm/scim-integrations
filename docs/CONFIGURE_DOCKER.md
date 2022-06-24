@@ -14,3 +14,6 @@ While configuring docker, you can set the following optional variables:
 - `SDM_SCIM_DELETE` - enable the plan and the sync process for the delete operation for users and groups. It's disabled by default
 - `SDM_SCIM_SDM_USERS_QUERY` - define a query according to the SCIM query syntax to filter the SDM users results (refer to [Generic SCIM Endpoint - List Users](https://www.strongdm.com/docs/architecture/scim-spec/users/list))
 - `SDM_SCIM_SDM_USERS_QUERY` - define a query according to the SCIM query syntax to filter the SDM groups results (refer to [Generic SCIM Endpoint - List Groups](https://www.strongdm.com/docs/architecture/scim-spec/groups/list))
+- `SDM_SCIM_REPORTS_DATABASE_PATH` - define the path of the sqlite3 reports database. It's `/reports.db` by default
+
+**NOTE**: when using `SDM_SCIM_REPORTS_DATABASE_PATH` and running the application outside docker you must set the environment variable `CGO_ENABLED=1`
