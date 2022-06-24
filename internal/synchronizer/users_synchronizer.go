@@ -46,12 +46,10 @@ func (sync *UserSynchronizer) Sync(ctx context.Context, snk sink.BaseSink) error
 		}
 	}
 	if *flags.AllOperationFlag || *flags.DeleteOperationFlag {
-		if *flags.DeleteUsersNotInIdPFlag {
-			deletedUsersCount, err := sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
-			sync.report.DeletedUsersCount = deletedUsersCount
-			if err != nil {
-				return err
-			}
+		deletedUsersCount, err := sync.deleteMissingSDMUsers(ctx, snk, sync.report.SinkUsersNotInIdP)
+		sync.report.DeletedUsersCount = deletedUsersCount
+		if err != nil {
+			return err
 		}
 	}
 	fmt.Println()
@@ -80,7 +78,7 @@ func (sync *UserSynchronizer) haveContentForSync() bool {
 	rpt := sync.report
 	return (len(rpt.IdPUsersToCreate) > 0 && canPerformAdd) ||
 		(len(rpt.IdPUsersToUpdate) > 0 && canPerformUpdate) ||
-		((*flags.DeleteUsersNotInIdPFlag && len(rpt.SinkUsersNotInIdP) > 0) && canPerformDelete)
+		(len(rpt.SinkUsersNotInIdP) > 0 && canPerformDelete)
 }
 
 func (sync *UserSynchronizer) intersectUsers() ([]*sink.UserRow, []*sink.UserRow, []*sink.UserRow, []*sink.UserRow) {
