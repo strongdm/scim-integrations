@@ -18,8 +18,6 @@ var AllOperationFlag = flag.Bool("all", false, "enable the visualization of the 
 var AddOperationFlag = flag.Bool("add", false, "enable the visualization of the planned data for the create operation")
 var UpdateOperationFlag = flag.Bool("update", false, "enable the visualization of the planned data for the update operation")
 var DeleteOperationFlag = flag.Bool("delete", false, "enable the visualization of the planned data for the delete operation")
-var DeleteGroupsNotInIdPFlag = flag.Bool("delete-groups-missing-in-idp", false, "delete groups present in SDM but not in the selected Identity Provider")
-var DeleteUsersNotInIdPFlag = flag.Bool("delete-users-missing-in-idp", false, "delete users present in SDM but not in the selected Identity Provider")
 
 func ValidateMandatoryFlags() error {
 	if _, ok := validIdPs[*IdPFlag]; !ok {
