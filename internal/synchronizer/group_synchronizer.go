@@ -288,10 +288,13 @@ func (sync *GroupSynchronizer) hasNewMembers(name string, members []*sink.GroupM
 	return foundMembersCount != len(members)
 }
 
-func formatSourceGroupName(name string) string {
-	orgUnits := strings.Split(name, "/")
+func formatSourceGroupName(orgUnitPath string) string {
+	orgUnits := strings.Split(orgUnitPath, "/")
 	if len(orgUnits) == 0 {
 		return ""
+	}
+	if len(orgUnits) == 1 {
+		return orgUnits[0]
 	}
 	return strings.Join(orgUnits[1:], "_")
 }

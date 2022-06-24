@@ -43,7 +43,7 @@ if [ "$SDM_SCIM_DELETE" == "true" ]; then
   cmd_flags+=("-delete")
 fi
 if [ "$SDM_SCIM_IDP_QUERY" != "" ]; then
-  cmd_flags+=("-idp-query $SDM_SCIM_IDP_QUERY")
+  cmd_flags+=("-idp-query '$SDM_SCIM_IDP_QUERY'")
 fi
 if [ "$SDM_SCIM_SDM_USERS_QUERY" != "" ]; then
   cmd_flags+=("-sdm-users-query '$SDM_SCIM_SDM_USERS_QUERY'")
