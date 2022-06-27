@@ -17,9 +17,10 @@ FROM debian:buster-slim AS RUNNER
 WORKDIR /scim-integrations
 
 # get build stage generated binary
-COPY --from=BUILDER /scim/scim /scim
+COPY --from=BUILDER /scim/scim /scim-integrations/scim
 
 # set the default environment variables
+ENV PATH="/scim-integrations/:${PATH}"
 ENV SDM_SCIM_IDP_QUERY=""
 ENV SDM_SCIM_ENABLE_RATE_LIMITER="false"
 ENV SDM_SCIM_APPLY="true"
@@ -27,12 +28,9 @@ ENV SDM_SCIM_ADD="false"
 ENV SDM_SCIM_UPDATE="false"
 ENV SDM_SCIM_DELETE="false"
 ENV SDM_SCIM_ALL="true"
-ENV SDM_SCIM_SDM_USERS_QUERY=""
-ENV SDM_SCIM_SDM_GROUPS_QUERY=""
-ENV SDM_SCIM_IDP_KEY_PATH="/scim-integrations/keys/idp-key.json"
+ENV SDM_SCIM_IDP_GOOGLE_KEY_PATH="/scim-integrations/keys/idp-key.json"
 ENV SDM_SCIM_REPORTS_DATABASE_PATH="/reports.db"
 ENV SDM_SCIM_CRON="*/15 * * * *"
-ENV DOCKERIZED="true"
 
 # install dependencies
 RUN apt-get update -y
@@ -43,6 +41,6 @@ COPY exec.sh /exec.sh
 COPY start.sh /start.sh
 
 # add execution
-RUN chmod +x /start.sh /exec.sh /scim
+RUN chmod +x /start.sh /exec.sh /scim-integrations/scim
 
 CMD ["bash", "/start.sh"]

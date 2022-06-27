@@ -51,10 +51,6 @@ $ go run main.go -help
         use Google as an IdP
   -idp-query string
         define a query according to the available query syntax for the selected Identity Provider
-  -sdm-groups-query string
-        define a query according to the SCIM query syntax to filter the SDM users and groups results
-  -sdm-users-query string
-        define a query according to the SCIM query syntax to filter the SDM users and groups results
   -update
         enable the visualization of the planned data for the update operation
 ```
@@ -137,8 +133,8 @@ When running with docker, you need to follow these steps:
 - Create a file called `env-file` using the content of the `env-file.example` file and fill the following variables:
   - `SDM_SCIM_TOKEN` - SDM SCIM Token
   - `SDM_SCIM_IDP` - defines the IdP that you want to synchronize
-  - `SDM_SCIM_IDP_USER` (should be configured following the documentation of the selected IdP)
-- Set the name of your key file (the key used in the `SDM_SCIM_IDP_KEY_PATH` env var) as `idp-key.json`. If it's not titled `idp-key.json` it won't work
+  - `SDM_SCIM_IDP_GOOGLE_SUBJECT_USER` (should be configured following the documentation of the selected IdP)
+- Set the name of your key file (the key used in the `SDM_SCIM_IDP_GOOGLE_KEY_PATH` env var) as `idp-key.json`. If it's not titled `idp-key.json` it won't work
 - Go to [docker-compose.yml](docker-compose.yml) and in the `scim-integrations` service refer the folder containing the `idp-key.json` file in the volume source (`/path/to/your/idp-key/folder:/scim/keys`)
 - Then you can run `docker-compose up`
 

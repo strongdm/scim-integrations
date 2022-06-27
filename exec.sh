@@ -39,14 +39,8 @@ fi
 if [ "$SDM_SCIM_IDP_QUERY" != "" ]; then
   cmd_flags+=("-idp-query '$SDM_SCIM_IDP_QUERY'")
 fi
-if [ "$SDM_SCIM_SDM_USERS_QUERY" != "" ]; then
-  cmd_flags+=("-sdm-users-query '$SDM_SCIM_SDM_USERS_QUERY'")
-fi
-if [ "$SDM_SCIM_SDM_GROUPS_QUERY" != "" ]; then
-  cmd_flags+=("-sdm-groups-query '$SDM_SCIM_SDM_GROUPS_QUERY'")
-fi
 
 # We need this line to properly build the command and be able to run it
-echo "/scim $(echo ${cmd_flags[*]})" > /run_scim.sh
+echo "scim $(echo ${cmd_flags[*]})" > /run_scim.sh
 chmod +x /run_scim.sh
 /run_scim.sh

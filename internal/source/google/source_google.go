@@ -116,7 +116,7 @@ func (g *sourceGoogleImpl) GetGoogleAdminService(ctx context.Context) (*admin.Se
 }
 
 func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
-	jsonCredentials, err := os.ReadFile(os.Getenv("SDM_SCIM_IDP_KEY_PATH"))
+	jsonCredentials, err := os.ReadFile(os.Getenv("SDM_SCIM_IDP_GOOGLE_KEY_PATH"))
 	if err != nil {
 		return nil, errors.New("Unable to read service account key file: " + err.Error())
 	}
@@ -124,7 +124,7 @@ func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.Token
 	if err != nil {
 		return nil, err
 	}
-	config.Subject = os.Getenv("SDM_SCIM_IDP_USER")
+	config.Subject = os.Getenv("SDM_SCIM_IDP_GOOGLE_SUBJECT_USER")
 
 	ts := config.TokenSource(ctx)
 	return ts, nil
@@ -132,7 +132,7 @@ func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.Token
 
 func getUserGroupName(googleUser *admin.User) string {
 	if googleUser.OrgUnitPath == "/" {
-		alias := os.Getenv("SDM_SCIM_GOOGLE_ROOT_ORG_UNIT_ALIAS")
+		alias := os.Getenv("SDM_SCIM_IDP_GOOGLE_ROOT_ORG_UNIT_ALIAS")
 		if alias != "" {
 			return alias
 		}

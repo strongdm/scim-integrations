@@ -3,7 +3,6 @@ package sdmscim
 import (
 	"context"
 	"fmt"
-	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"strings"
 
@@ -11,9 +10,7 @@ import (
 )
 
 func (s *sinkSDMSCIMImpl) FetchGroups(ctx context.Context) ([]*sink.GroupRow, error) {
-	iterator := s.client.Groups().List(ctx, &scimmodels.PaginationOptions{
-		Filter: *flags.SDMGroupsQueryFlag,
-	})
+	iterator := s.client.Groups().List(ctx, nil)
 	var result []*sink.GroupRow
 	for iterator.Next() {
 		group := *iterator.Value()

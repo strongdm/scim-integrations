@@ -3,7 +3,6 @@ package sdmscim
 import (
 	"context"
 	"fmt"
-	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 
 	scimmodels "github.com/strongdm/scimsdk/models"
@@ -15,9 +14,7 @@ func (s *sinkSDMSCIMImpl) FetchUsers(ctx context.Context) ([]*sink.UserRow, erro
 		return nil, err
 	}
 	userGroups := separateGroupsByUser(groups)
-	iterator := s.client.Users().List(ctx, &scimmodels.PaginationOptions{
-		Filter: *flags.SDMUsersQueryFlag,
-	})
+	iterator := s.client.Users().List(ctx, nil)
 	users, err := usersWithGroupsToSink(iterator, userGroups)
 	if err != nil {
 		return nil, err
