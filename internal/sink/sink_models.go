@@ -33,6 +33,7 @@ type UserRow struct {
 type GroupRow struct {
 	ID          string
 	DisplayName string
+	Path        string
 	Members     []*GroupMember
 }
 

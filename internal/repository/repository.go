@@ -98,5 +98,5 @@ func exec(query string, args ...interface{}) (sql.Result, error) {
 }
 
 func isDatabaseEnabled() bool {
-	return os.Getenv("SDM_SCIM_REPORTS_DATABASE_PATH") != ""
+	return os.Getenv("CGO_ENABLED") == "1" && os.Getenv("SDM_SCIM_REPORTS_DATABASE_PATH") != ""
 }

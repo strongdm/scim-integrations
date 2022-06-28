@@ -7,6 +7,7 @@ import (
 	"scim-integrations/internal/flags"
 	"scim-integrations/internal/sink"
 	"scim-integrations/internal/source"
+	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -63,23 +64,23 @@ func (*sourceGoogleImpl) ExtractGroupsFromUsers(users []*source.User) []*source.
 	mappedGroupMembers := map[string][]*sink.GroupMember{}
 	for _, user := range users {
 		for _, userGroup := range user.Groups {
-			if _, ok := mappedGroupMembers[userGroup]; !ok {
-				mappedGroupMembers[userGroup] = []*sink.GroupMember{
+			if _, ok := mappedGroupMembers[userGroup.Path]; !ok {
+				mappedGroupMembers[userGroup.Path] = []*sink.GroupMember{
 					{
 						ID:    user.ID,
 						Email: user.UserName,
 					},
 				}
 			} else {
-				mappedGroupMembers[userGroup] = append(mappedGroupMembers[userGroup], &sink.GroupMember{
+				mappedGroupMembers[userGroup.Path] = append(mappedGroupMembers[userGroup.Path], &sink.GroupMember{
 					ID:    user.ID,
 					Email: user.UserName,
 				})
 			}
 		}
 	}
-	for groupName, members := range mappedGroupMembers {
-		groups = append(groups, &source.UserGroup{DisplayName: groupName, Members: members})
+	for orgUnitPath, members := range mappedGroupMembers {
+		groups = append(groups, &source.UserGroup{DisplayName: formatGroupNameToSDM(orgUnitPath), Path: orgUnitPath, Members: members})
 	}
 	return groups
 }
@@ -91,14 +92,22 @@ func (*sourceGoogleImpl) InternalGoogleFetchUsers(service *admin.Service, nextPa
 func googleUsersToSCIMUser(googleUsers []*admin.User) []*source.User {
 	var users []*source.User
 	for _, googleUser := range googleUsers {
-		users = append(users, &source.User{
-			ID:         googleUser.Id,
-			UserName:   googleUser.PrimaryEmail,
-			GivenName:  googleUser.Name.GivenName,
-			FamilyName: googleUser.Name.FamilyName,
-			Active:     !googleUser.Suspended,
-			Groups:     []string{getUserGroupName(googleUser)},
-		})
+		users = append(
+			users,
+			&source.User{
+				ID:         googleUser.Id,
+				UserName:   googleUser.PrimaryEmail,
+				GivenName:  googleUser.Name.GivenName,
+				FamilyName: googleUser.Name.FamilyName,
+				Active:     !googleUser.Suspended,
+				Groups: []source.UserGroup{
+					{
+						DisplayName: formatGroupNameToSDM(googleUser.OrgUnitPath),
+						Path:        googleUser.OrgUnitPath,
+					},
+				},
+			},
+		)
 	}
 	return users
 }
@@ -130,13 +139,21 @@ func (*sourceGoogleImpl) GetGoogleTokenSource(ctx context.Context) (oauth2.Token
 	return ts, nil
 }
 
-func getUserGroupName(googleUser *admin.User) string {
-	if googleUser.OrgUnitPath == "/" {
+func formatGroupNameToSDM(orgUnitPath string) string {
+	if orgUnitPath == "/" {
 		alias := os.Getenv("SDM_SCIM_IDP_GOOGLE_ROOT_ORG_UNIT_ALIAS")
 		if alias != "" {
 			return alias
 		}
 		return "root"
 	}
-	return googleUser.OrgUnitPath
+	orgUnits := strings.Split(orgUnitPath, "/")
+	if len(orgUnits) == 0 {
+		return ""
+	}
+	if len(orgUnits) == 1 {
+		return orgUnits[0]
+	}
+	groupName := strings.Join(orgUnits[1:], "_")
+	return groupName
 }

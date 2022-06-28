@@ -16,12 +16,13 @@ type User struct {
 	GivenName   string
 	FamilyName  string
 	Active      bool
-	Groups      []string
+	Groups      []UserGroup
 	SDMObjectID string
 }
 
 type UserGroup struct {
 	DisplayName string
+	Path        string
 	Members     []*sink.GroupMember
 	SDMObjectID string
 }
