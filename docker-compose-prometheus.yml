@@ -7,8 +7,8 @@ services:
     env_file:
       - env-file
     volumes:
-      # Instead of /path/to/your/idp-key/folder specify the path of your idp-key.json
-      - /path/to/your/idp-key/folder:/scim-integrations/keys/
+      # Instead of "/path/to/your/idp-key.json" specify the path of your idp-key.json
+      - /path/to/your/idp-key.json:/scim-integrations/keys/idp-key.json
   prometheus:
     build: tools/prometheus
     ports:

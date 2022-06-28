@@ -64,3 +64,10 @@ To add a filter to the IdP search, you can use the `-idp-query` flag refering to
 ### Additional env variables
 
 - `SDM_SCIM_IDP_GOOGLE_ROOT_ORG_UNIT_ALIAS` - alias for representing the root organization unit in strongDM roles
+
+## Running with Docker
+
+To configure the Google IdP on Docker you need to follow these steps:
+
+- Go to [docker-compose.yml](../docker-compose.yml) and in the `scim-integrations` service refer your service account key file in the volume source (`/path/to/your/idp-key.json:/scim-integrations/keys/idp-key.json`) and leave the destination path as it is, or else it won't work.
+- Refer to the [overall steps](../README.md#Running-with-Docker) of how to run SCIM Integrations with Docker.
