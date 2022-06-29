@@ -115,7 +115,11 @@ func (*Report) describeGroup(groupRow *sink.GroupRow, sign string, showDetails b
 	if len(groupRow.ID) > 0 {
 		fmt.Printf("\t %s ID: %s\n", sign, groupRow.ID)
 	}
-	fmt.Printf("\t %s Display Name: %s (%s)\n", sign, groupRow.DisplayName, groupRow.Path)
+	fmt.Printf("\t %s Display Name: %s", sign, groupRow.DisplayName)
+	if groupRow.Path != "" {
+		fmt.Printf(" (%s)", groupRow.Path)
+	}
+	fmt.Println()
 	if len(groupRow.Members) > 0 && showDetails {
 		fmt.Printf("\t\t %s Members:\n", sign)
 		for _, member := range groupRow.Members {

@@ -31,6 +31,7 @@ ENV SDM_SCIM_ALL="true"
 ENV SDM_SCIM_IDP_GOOGLE_KEY_PATH="/scim-integrations/keys/idp-key.json"
 ENV SDM_SCIM_REPORTS_DATABASE_PATH="/reports.db"
 ENV SDM_SCIM_CRON="*/15 * * * *"
+ENV CGO_ENABLED="1"
 
 # install dependencies
 RUN apt-get update -y
