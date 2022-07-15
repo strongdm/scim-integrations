@@ -1,6 +1,6 @@
 # SCIM Integrations
 
-SDM SCIM SDK with IdP Integrations
+SDM SCIM SDK with IdP Integrations.
 
 ## Table of Contents
 
